@@ -5,6 +5,7 @@ using namespace boost;
 
 std::string readFromSocket(asio::ip::tcp::socket &sock, size_t read_size = 8);
 std::string readFromSocketAsioRead(asio::ip::tcp::socket &sock, size_t read_size = 8);
+std::string readFromSocketDelim(asio::ip::tcp::socket &sock, char delim = '\n');
 
 int main()
 {
@@ -21,9 +22,13 @@ int main()
         acceptor.bind(ep);
         acceptor.listen();
         acceptor.accept(sock);
-        std::cout << readFromSocket(sock) << ":";
-        std::cout << readFromSocketAsioRead(sock) << ":";
-        std::cout << readFromSocketAsioRead(sock) << ":";
+        // std::cout << readFromSocket(sock) << ":";
+        // std::cout << readFromSocketAsioRead(sock) << ":";
+        // std::cout << readFromSocketAsioRead(sock) << ":";
+        while (true)
+        {
+            std::cout << readFromSocketDelim(sock) << ":";
+        }
     }
     catch (const system::system_error &e)
     {
@@ -49,4 +54,19 @@ std::string readFromSocketAsioRead(asio::ip::tcp::socket &sock, size_t read_size
     std::string input(buffer, read_size);
     delete[] buffer;
     return input;
+}
+
+std::string readFromSocketDelim(asio::ip::tcp::socket &sock, char delim)
+{
+    // after read_until, the buffer might contains multiple delimitor symbols
+    static asio::streambuf buffer;
+    std::cout << std::endl
+              << "BEFORE READ: " << buffer.data().size() << std::endl;
+    asio::read_until(sock, buffer, delim);
+    std::cout << std::endl
+              << "AFTER READ: " << buffer.data().size() << std::endl;
+    std::istream input_s(&buffer);
+    std::string line;
+    std::getline(input_s, line);
+    return line;
 }
