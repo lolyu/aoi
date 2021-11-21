@@ -21,7 +21,7 @@ int main()
         std::shared_ptr<asio::ip::tcp::socket> sock(new asio::ip::tcp::socket(ios, ep.protocol()));
         sock->connect(ep);
         writeToSockAsync(sock, message);
-
+        writeToSockAsync(sock, message);
         // asio::os_service::run returns after the last asynchronous callback is finished
         ios.run();
     }
