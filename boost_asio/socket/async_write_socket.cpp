@@ -14,7 +14,7 @@ int main()
 
     try
     {
-        std::string message = "HELLOWORLD";
+        std::string message = "HELLOWORLD\n";
         asio::ip::tcp::endpoint ep(asio::ip::address_v4::from_string(raw_ip_address), port_num);
         asio::io_service ios;
 
