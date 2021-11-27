@@ -54,21 +54,43 @@ private:
 class Server
 {
 public:
-    Server() : m_stop(false) {}
+    Server() : m_stop(false), m_port_num(-1) {}
 
     void start(unsigned short port_num)
     {
+        m_port_num = port_num;
         m_thread.reset(new std::thread([this, port_num]()
                                        { run(port_num); }));
     }
 
     void stop()
     {
-        m_stop.store(false);
+        m_stop.store(true);
+        send_dummy_request();
         m_thread->join();
     }
 
 private:
+    void send_dummy_request()
+    {
+        try
+        {
+            boost::asio::ip::tcp::socket dummy_sock(m_ios);
+            boost::asio::ip::tcp::endpoint ep(boost::asio::ip::address_v4::any(), m_port_num);
+            dummy_sock.open(ep.protocol());
+            dummy_sock.connect(ep);
+            std::string dummy_request = "DUMMYREQUEST\n";
+            boost::asio::write(dummy_sock, boost::asio::buffer(dummy_request));
+            boost::asio::streambuf dummy_response;
+            boost::asio::read_until(dummy_sock, dummy_response, '\n');
+            dummy_sock.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+        }
+        catch (const boost::system::error_code &ec)
+        {
+            // do nothing
+        }
+    }
+
     void run(unsigned short port_num)
     {
         Acceptor acc(m_ios, port_num);
@@ -79,8 +101,10 @@ private:
             acc.accept();
         }
     }
+
     std::unique_ptr<std::thread> m_thread;
     std::atomic<bool> m_stop;
+    unsigned short m_port_num;
     boost::asio::io_service m_ios;
 };
 
@@ -91,7 +115,7 @@ int main()
     {
         Server s;
         s.start(port_num);
-        std::this_thread::sleep_for(std::chrono::seconds(30));
+        std::this_thread::sleep_for(std::chrono::seconds(100));
         s.stop();
     }
     catch (const boost::system::system_error &e)
