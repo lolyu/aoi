@@ -8,6 +8,7 @@ function signature
     * function parameter number
     * function parameter type
     * function parameter ordering
+    * function constness
 */
 
 int sumup(int, int);
