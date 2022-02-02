@@ -10,6 +10,8 @@ public:
     double Balance() const;
     virtual void Withdraw(double amt);
     virtual void ViewAccount() const;
+    // always need a virtual destructor, when delete is called to a pointer that points to a base class, the delete will
+    // call the corresponding destructor based on the type of the pointed object instead of the pointer type.
     virtual ~Brass() {}
 
 private:
@@ -35,6 +37,6 @@ private:
     double mMaxLoan;
     double mRate;
     double mOwesBank;
-}
+};
 
 #endif

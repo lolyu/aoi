@@ -1,8 +1,10 @@
 #include <iostream>
+#include <iomanip>
 #include "brass.h"
 
 using std::cout;
 using std::endl;
+using std::setw;
 using std::string;
 
 typedef std::ios_base::fmtflags format;
@@ -11,7 +13,7 @@ typedef std::streamsize precis;
 format setFormat();
 void restore(format f, precis p);
 
-Brass::Brass(const std::string &s = "NONE", long an = -1, double bal = 0.0) : mFullName(s), mAccountNumber(an), mBalance(bal) {}
+Brass::Brass(const std::string &s, long an, double bal) : mFullName(s), mAccountNumber(an), mBalance(bal) {}
 
 void Brass::Deposit(double amt)
 {
@@ -93,7 +95,14 @@ void BrassPlus::Withdraw(double amt)
 
 void BrassPlus::ViewAccount() const
 {
-    ;
+    format initialState = setFormat();
+    precis prec = cout.precision(2);
+    Brass::ViewAccount();
+    cout << "Maximum loan: $" << mMaxLoan << endl;
+    cout << "Owed to bank: $" << mOwesBank << endl;
+    cout.precision(3);
+    cout << "Loan rate: " << setw(4) << 100 * mRate << "%" << endl;
+    restore(initialState, prec);
 }
 
 format setFormat()
