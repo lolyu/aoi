@@ -28,14 +28,14 @@ void workFunc(std::shared_ptr<boost::asio::io_service> ios, int counter)
 
 void print(int number)
 {
-    std::cout << "Number: " << number << std::endl;
+    std::cout << number;
 }
 
 int main()
 {
     std::shared_ptr<boost::asio::io_service> ios(new boost::asio::io_service);
     std::unique_ptr<boost::asio::io_service::work> work(new boost::asio::io_service::work(*ios));
-    boost::asio::io_service::strand strand(*ios);
+    std::unique_ptr<boost::asio::io_service::strand> strand(new boost::asio::io_service::strand(*ios));
 
     std::vector<std::thread> threads;
     for (int i = 0; i < 5; ++i)
@@ -44,22 +44,22 @@ int main()
     }
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    ios->post(strand.wrap(boost::bind(print, 1)));
-    ios->post(strand.wrap(boost::bind(print, 2)));
+    ios->post(strand->wrap(boost::bind(print, 1)));
+    ios->post(strand->wrap(boost::bind(print, 2)));
     ios->post(boost::bind(print, 3));
     ios->post(boost::bind(print, 4));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     ios->post(boost::bind(print, 5));
     ios->post(boost::bind(print, 6));
-    ios->post(strand.wrap(boost::bind(print, 7)));
-    ios->post(strand.wrap(boost::bind(print, 8)));
+    ios->post(strand->wrap(boost::bind(print, 7)));
+    ios->post(strand->wrap(boost::bind(print, 8)));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    ios->post(strand.wrap(boost::bind(print, 9)));
-    ios->post(strand.wrap(boost::bind(print, 10)));
+    ios->post(strand->wrap(boost::bind(print, 9)));
+    ios->post(strand->wrap(boost::bind(print, 10)));
 
     work.reset();
 
