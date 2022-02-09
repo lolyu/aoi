@@ -5,12 +5,10 @@
 #include <string>
 #include <valarray>
 
+typedef std::valarray<double> ArrayDb;
+
 class Student
 {
-
-private:
-    typedef std::valarray<double> ArrayDb;
-
 public:
     Student() : mName("NONE"), mScores() {}
 
@@ -46,6 +44,45 @@ private:
 private:
     std::string mName;
     ArrayDb mScores;
+};
+
+class StudentPriv : private std::string, private ArrayDb
+{
+public:
+    StudentPriv() : std::string("NONE"), ArrayDb() {}
+
+    explicit StudentPriv(const std::string &s) : std::string(s), ArrayDb() {}
+
+    explicit StudentPriv(int n) : std::string("NONE"), ArrayDb(n) {}
+
+    StudentPriv(const std::string &s, int n) : std::string(s), ArrayDb(n) {}
+
+    StudentPriv(const std::string &s, const ArrayDb &a) : std::string(s), ArrayDb(a) {}
+
+    StudentPriv(const char *str, const double *pd, int n) : std::string(str), ArrayDb(pd, n) {}
+
+    ~StudentPriv() = default;
+
+    const std::string &Name() const;
+
+    double Average() const;
+
+    double &operator[](int i);
+
+    double operator[](int i) const;
+
+    // enable the public methods from private-inherited parent classes
+    using ArrayDb::max;
+    using ArrayDb::size;
+
+    friend std::istream &operator>>(std::istream &is, StudentPriv &stu);
+
+    friend std::ostream &operator<<(std::ostream &os, const StudentPriv &stu);
+
+    friend std::istream &getline(std::istream &is, StudentPriv &stu);
+
+private:
+    std::ostream &arr_out(std::ostream &os) const;
 };
 
 #endif
