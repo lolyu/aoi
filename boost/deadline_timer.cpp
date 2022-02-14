@@ -23,8 +23,7 @@ void nonblocking_wait(std::shared_ptr<boost::asio::deadline_timer> timer)
                           if (!ec)
                           {
                               std::cout << "Timer expired at " << std::time(0) << std::endl;
-                          }
-                      });
+                          } });
 }
 
 int main()
@@ -41,8 +40,10 @@ int main()
     std::cout << std::time(0) << std::endl;
     nonblocking_wait(timer);
     std::cout << std::time(0) << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    int i = timer->cancel();
+    std::cout << "Cancel " << i << " wait handlers" << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(10));
     work.reset();
     th.join();
 
