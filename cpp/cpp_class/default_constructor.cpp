@@ -16,6 +16,15 @@ public:
     int j;
 };
 
+class C
+{
+private:
+    int c;
+
+public:
+    C(int c) : c(c) {}
+};
+
 int main()
 {
     for (int i = 0; i < 10; ++i)
@@ -27,5 +36,6 @@ int main()
         delete pa;
         delete pb;
     }
+    // C();
     return 0;
 }
