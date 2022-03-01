@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <string>
 
 using namespace std;
 
@@ -10,33 +11,33 @@ https://stackoverflow.com/questions/27085782/how-to-break-shared-ptr-cyclic-refe
 
 struct A0;
 
-struct B0
-{
+struct B0 {
     A0 &a;
-    B0(A0 &a) : a(a) {}
+    B0(A0 &a)
+        : a(a) {}
     ~B0() { cout << "Destroy B0" << endl; }
 };
 
-struct A0
-{
+struct A0 {
     B0 b;
-    A0() : b(*this) {}
+    A0()
+        : b(*this) {}
     ~A0() { cout << "Destroy A0" << endl; }
 };
 
 struct A1;
 
-struct B1
-{
+struct B1 {
     A1 *a;
-    B1(A1 *a) : a(a) {}
+    B1(A1 *a)
+        : a(a) {}
     ~B1() { cout << "Destroy B1" << endl; }
 };
 
-struct A1
-{
+struct A1 {
     B1 *b;
-    A1() : b(new B1(this)) {}
+    A1()
+        : b(new B1(this)) {}
     ~A1()
     {
         delete b;
@@ -46,40 +47,39 @@ struct A1
 
 struct A2;
 
-struct B2
-{
+struct B2 {
     shared_ptr<A2> a;
-    B2(A2 *a) : a(a) {}
+    B2(A2 *a)
+        : a(a) {}
     ~B2() { cout << "Destroy B2" << endl; }
 };
 
-struct A2
-{
+struct A2 {
     shared_ptr<B2> b;
-    A2() : b(make_shared<B2>(this)) {}
+    A2()
+        : b(make_shared<B2>(this)) {}
     ~A2() { cout << "Destroy A2" << endl; }
 };
 
 struct A3;
 
-struct B3
-{
+struct B3 {
     weak_ptr<A3> wa;
     B3(shared_ptr<A3> a) { wa = a; }
     ~B3() { cout << "Destroy B3" << endl; }
 };
 
-struct A3 : public enable_shared_from_this<A3>
-{
+struct A3 : public enable_shared_from_this<A3> {
     shared_ptr<B3> b;
-    A3() : b(make_shared<B3>(shared_from_this())){};
+    A3()
+        : b(make_shared<B3>(shared_from_this())){};
     ~A3() { cout << "Destroy A3" << endl; }
 };
 
 int main()
 {
-    A0 *a0p = new A0();
-    delete a0p;
+    A0 *a0p = new A0(); //
+    delete a0p;         //
 
     A1 *a1p = new A1();
     delete a1p;
