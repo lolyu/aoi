@@ -1,0 +1,30 @@
+syntax = "proto3";
+package ordermgmt;
+
+import "google/protobuf/wrappers.proto";
+
+service OrderManagement {
+    // unary RPC
+    rpc addOrder(Order) returns (google.protobuf.StringValue);
+    rpc getOrder(google.protobuf.StringValue) returns (Order);
+    // server stream RPC
+    rpc searchOrders(google.protobuf.StringValue) returns (stream Order);
+    // client stream RPC
+    rpc updateOrders(stream Order) returns (google.protobuf.StringValue);
+    // bidirectional RPC
+    rpc processOrders(stream google.protobuf.StringValue) returns (stream CombinedShipment);
+}
+
+message Order {
+    string id = 1;
+    repeated string items = 2;
+    string description = 3;
+    float price = 4;
+    string destination = 5;
+}
+
+message CombinedShipment {
+    string id = 1;
+    string status = 2;
+    repeated Order ordersList = 3;
+}
