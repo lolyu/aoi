@@ -1,5 +1,4 @@
 import logging
-from turtle import update
 import uuid
 
 import grpc
