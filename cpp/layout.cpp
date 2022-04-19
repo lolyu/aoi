@@ -20,6 +20,9 @@ Trivial types have:
     * trivial copy constructor
     * trivial copy assignment
     * trivial destructor
+    * no virtual functions or virtual base classes
+    * no base class that is non-trivial
+    * no data member that is non-trivial
 
 Trivial types:
     * can do memcopy
@@ -45,7 +48,8 @@ private:
 public:
     int i;
     Trivial1() = default;
-    Trivial1(int i) : i(i) {}
+    Trivial1(int i)
+        : i(i) {}
 };
 
 class NonTrivial0
@@ -54,7 +58,8 @@ private:
 public:
     int i;
     NonTrivial0() = default;
-    NonTrivial0(int i) : i(i) {}
+    NonTrivial0(int i)
+        : i(i) {}
     ~NonTrivial0() {}
 };
 
@@ -63,40 +68,36 @@ class NonTrivial1
 private:
 public:
     int i;
-    NonTrivial1(int i = 10) : i(i) {}
+    NonTrivial1(int i = 10)
+        : i(i) {}
     ~NonTrivial1() = default;
 };
 
-struct B
-{
+struct B {
 protected:
     virtual void Foo() {}
 };
 
-struct A : B
-{
+struct A : B {
     int a;
     int b;
     void Foo() override {}
 };
 
-struct C
-{
+struct C {
     int a;
 
 private:
     int b;
 };
 
-struct D
-{
+struct D {
     int a;
     int b;
     D() {}
 };
 
-struct POD
-{
+struct POD {
     int a;
     int b;
 };
