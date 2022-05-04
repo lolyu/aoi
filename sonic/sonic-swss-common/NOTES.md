@@ -222,7 +222,7 @@ True
 | ProducerTable && ConsumerTable               | ProducerTable uses list to queue (key, values op) and<br /> use pub/sub to notify ConsumerTable key events                                                                                                                                                                                                                                                |
 | ProducerStateTable && ConsumerStateTable     | ProducerStateTable uses two sets to store SET and DEL<br /> operation keys, and use pub/sub to notify ConsumerStateTable<br /> so before ConsumerStateTable consumes events, multiple <br /> will be treated as one event for ConsumerStateTable, which will<br /> only be able to resume final table state without any operation<br />sequence guarantee |
 | SubscriberStateTable                         | subscribe to a table's keyspace event channel, and get<br /> notification when the table entries get modified(add or del)                                                                                                                                                                                                                                 |
-| NotificationProducer && NotificationConsumer |                                                                                                                                                                                                                                                                                                                                                           |
+| NotificationProducer && NotificationConsumer | NotificationProducer sends the (key, op, values) as a<br /> jsonized string to the channel which NotificationConsumer<br /> will subscribe to, when NotificationConsumer is ready for<br /> IO, it will read channel messages into its cache for future pops                                                                                              |
 
 
 ### ProducerTable && ConsumerTable
@@ -466,6 +466,45 @@ $ redis-cli -n 4 monitor | grep EMPLOYEE
 ['Ethernet28', 'SET', (('admin_status', 'up'), ('alias', 'fortyGigE0/28'), ('description', 'Servers6:eth0'), ('index', '7'), ('lanes', '5,6,7,8'), ('mtu', '9100'), ('pfc_asym', 'off'), ('speed', '40000'), ('tpid', '0x8100'))]
 ```
 
+### NotificationProducer && NotificationConsumer
+NotificationProducer
+    * m_db
+    * m_channel: channel to publish
+    * send(op, data, values)
+        * jsonize (op, data, values) and send the json string via m_channel
+
+NotificationConsumer -> Selectable
+    * m_db
+    * m_subscribe: db connector subscribed to m_channel
+    * m_channel: channel to subscribe
+    * m_queue: received strings from m_channel
+    * readData()
+    * hasData()
+    * hasCachedData()
+    * processReply()
+        * retrieve channel message string from the redisReply object
+    * pop(op, data, values)
+    * pops(vkco)
+
+```
+>>> from swsscommon import swsscommon
+>>> db = swsscommon.DBConnector("CONFIG_DB", 0, True)
+>>> c = swsscommon.NotificationProducer(db, "DEMOCHANNEL")
+>>> c.send("SET", "DEMO", swsscommon.FieldValuePairs([('1', '1'), ('2', '2')]))
+0
+>>> p = swsscommon.NotificationProducer(db, "DEMOCHANNEL")
+>>> c = swsscommon.NotificationConsumer(db, "DEMOCHANNEL")
+>>> p.send("SET", "DEMO", swsscommon.FieldValuePairs([('1', '1'), ('2', '2')]))
+2
+>>> c.readData()
+0
+>>> c.pop()
+['SET', 'DEMO', (('1', '1'), ('2', '2'))]
+```
+```
+$ redis-cli monitor | grep DEMO
+1651661527.377590 [4 127.0.0.1:49846] "PUBLISH" "DEMOCHANNEL" "[\"SET\",\"DEMO\",\"1\",\"1\",\"2\",\"2\"]"
+```
 
 ## references
 * https://github.com/Azure/SONiC/blob/master/doc/warm-reboot/view_switch.md
