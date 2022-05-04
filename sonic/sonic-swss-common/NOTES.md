@@ -217,10 +217,12 @@ True
 
 
 ## SONiC message systems
-| type                                       | summary                                                                                                   |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| ProducerTable && ConsumerTable             | ProducerTable use list to queue (key, values op) and<br /> use pub/sub to notify ConsumerTable key events |
-| ProducerStateTable && SubscriberStateTable |                                                                                                           |
+| type                                         | summary                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ProducerTable && ConsumerTable               | ProducerTable uses list to queue (key, values op) and<br /> use pub/sub to notify ConsumerTable key events                                                                                                                                                                                                                                                |
+| ProducerStateTable && ConsumerStateTable     | ProducerStateTable uses two sets to store SET and DEL<br /> operation keys, and use pub/sub to notify ConsumerStateTable<br /> so before ConsumerStateTable consumes events, multiple <br /> will be treated as one event for ConsumerStateTable, which will<br /> only be able to resume final table state without any operation<br />sequence guarantee |
+| SubscriberStateTable                         | subscribe to a table's keyspace event channel, and get<br /> notification when the table entries get modified(add or del)                                                                                                                                                                                                                                 |
+| NotificationProducer && NotificationConsumer |                                                                                                                                                                                                                                                                                                                                                           |
 
 
 ### ProducerTable && ConsumerTable
@@ -277,7 +279,12 @@ $ redis-cli monitor | grep EMPLOYEE
 [('ALICE',), ('SET',), ((('name', 'alice'), ('age', '18')),)]
 ```
 
-### ProducerStateTable && SubscriberStateTable
+### ProducerStateTable && ConsumerStateTable
+
+| Terminology | Sample Redis Object         |
+| ----------- | --------------------------- |
+| TableHash   | ROUTE_TABLE:25.78.106.0/27  |
+| StateHash   | _ROUTE_TABLE:25.78.106.0/27 |
 
 * ProducerStateTable -> TableBase, TableName_KeySet
     * m_buffered
@@ -293,8 +300,173 @@ $ redis-cli monitor | grep EMPLOYEE
     * m_tempViewState
     * set(key, values, op, prefix)
     * del(key, op, prefix)
+ 
+* ProducerStateTable::m_shaSet
+    * add key to keyset(taleName + "_KEY_SET"), which is a set
+    * HSET (stateHashPrefix + tableName + tableSeparator + key) fvField(iv) fvValue(iv) for iv in values
+    * if key not in keyset previously, publish (tableName + "_CHANNEL") "G"
+* ProducerStateTable::m_shaDel
+    * add key to keyset(tableName + "_KEY_SET")
+    * add key to delkeyset(tableName + "_DEL_SET")
+    * DEL (stateHashPrefix + tableName + tableSeparator + key)
+    * if key not in keyset previously, publish (tableName + "_CHANNEL) "G"
+* ProducerStateTable::m_shaBatchedSet
+    * for each key:
+        * add key to keyset(tableName + "_KEY_SET")
+        * HSET (stateHashPrefix + tableName + tableSeparator + key) fvField(iv) fvValue(iv) for iv in values
+    * if any key not in keyset previously, publish (tableName + "_CHANNEL") "G"
+* ProducerStateTable::m_shaBatchDel
+    * for each key:
+        * add key to keyset(tableName + "_KEY_SET")
+        * add key to delkeyset(tableName + "_DEL_SET")
+        * DEL (stateHashPrefix + tableName + tableSeparator + key)
+    * if any key not in keyset previously, publish (tableName + "_CHANNEL) "G"
+* ProducerStateTable::m_shaClear
+    * del keyset
+    * del delkeyset
+    * for keys returned by (stateHashPrefix + tableName + "*")
+        * del the key(table entry)
+```
+>>> from swsscommon import swsscommon
+>>> db = swsscommon.DBConnector("CONFIG_DB", 0, True)
+>>> producer = swsscommon.ProducerStateTable(db, "EMPLOYEE")
+>>> values = swsscommon.FieldValuePairs([('name', 'alice'), ('age', '18')])
+>>> producer.set("ALICE", values)
+>>> values = swsscommon.FieldValuePairs([('salary', '8900')])
+>>> producer.set("ALICE", values)
+>>> producer._del("ALICE")
+>>> producer.clear()
+```
+```
+$ sudo redis-cli monitor | grep EMPLOYEE
+1651643806.116813 [4 127.0.0.1:42092] "EVALSHA" "6875900592cdd1621c6191fe038ec3b29775aa13" "4" "EMPLOYEE_CHANNEL@4" "EMPLOYEE_KEY_SET" "_EMPLOYEE|ALICE" "_EMPLOYEE|ALICE" "G" "ALICE" "name" "alice" "age" "18"
+1651643806.117046 [4 lua] "SADD" "EMPLOYEE_KEY_SET" "ALICE"
+1651643806.117293 [4 lua] "HSET" "_EMPLOYEE|ALICE" "name" "alice"
+1651643806.117353 [4 lua] "HSET" "_EMPLOYEE|ALICE" "age" "18"
+1651643806.117419 [4 lua] "PUBLISH" "EMPLOYEE_CHANNEL@4" "G"
+1651643827.422392 [4 127.0.0.1:42092] "EVALSHA" "6875900592cdd1621c6191fe038ec3b29775aa13" "3" "EMPLOYEE_CHANNEL@4" "EMPLOYEE_KEY_SET" "_EMPLOYEE|ALICE" "G" "ALICE" "salary" "8900"
+1651643827.422570 [4 lua] "SADD" "EMPLOYEE_KEY_SET" "ALICE"
+1651643827.422636 [4 lua] "HSET" "_EMPLOYEE|ALICE" "salary" "8900"
+1651643856.869038 [4 127.0.0.1:42092] "EVALSHA" "88ba6312b8de850b3506966425174d8899aadd93" "4" "EMPLOYEE_CHANNEL@4" "EMPLOYEE_KEY_SET" "_EMPLOYEE|ALICE" "EMPLOYEE_DEL_SET" "G" "ALICE" "''" "''"
+1651643856.869496 [4 lua] "SADD" "EMPLOYEE_KEY_SET" "ALICE"
+1651643856.869530 [4 lua] "SADD" "EMPLOYEE_DEL_SET" "ALICE"
+1651643856.869694 [4 lua] "DEL" "_EMPLOYEE|ALICE"
+1651643888.029937 [4 127.0.0.1:42092] "EVALSHA" "a7a229c9946f655aebc07e29d5e4d8ff5055ded8" "3" "EMPLOYEE_KEY_SET" "_EMPLOYEE" "EMPLOYEE_DEL_SET"
+1651643888.030139 [4 lua] "DEL" "EMPLOYEE_KEY_SET"
+1651643888.030280 [4 lua] "KEYS" "_EMPLOYEE*"
+1651643888.030321 [4 lua] "DEL" "EMPLOYEE_DEL_SET"
+1651643901.570986 [6 127.0.0.1:35120] "HSET" "PROCESS_STATS|2046154" "CMD" "grep EMPLOYEE"
+```
 
-* SubscriberStateTable -> ConsumerTableBase
-    * m_keyspace
-    * m_keyspace_event_buffer: std::deque<std::shared_ptr<RedisReply>>
-    * m_table
+* temp view
+```
+>>> producer.create_temp_view()
+>>> values = swsscommon.FieldValuePairs([('name', 'alice'), ('age', '18')])
+>>> producer.set("ALICE", values)
+>>> values = swsscommon.FieldValuePairs([('salary', '8900')])
+>>> producer.set("ALICE", values)
+>>> producer.apply_temp_view()
+```
+```
+$ sudo redis-cli monitor | grep EMPLOYEE
+1651645694.019295 [4 127.0.0.1:42092] "EVALSHA" "a7a229c9946f655aebc07e29d5e4d8ff5055ded8" "3" "EMPLOYEE_KEY_SET" "_EMPLOYEE" "EMPLOYEE_DEL_SET"
+1651645694.019418 [4 lua] "DEL" "EMPLOYEE_KEY_SET"
+1651645694.019469 [4 lua] "KEYS" "_EMPLOYEE*"
+1651645694.019500 [4 lua] "DEL" "_EMPLOYEE|ALICE"
+1651645694.019534 [4 lua] "DEL" "EMPLOYEE_DEL_SET"
+1651645694.030235 [4 127.0.0.1:42092] "EVALSHA" "654245aafba722f7b601e1fc414c3647058c053c" "1" "EMPLOYEE" "''"
+1651645694.030258 [4 lua] "KEYS" "EMPLOYEE:*"
+1651645694.031142 [4 127.0.0.1:42092] "EVALSHA" "d2494885834676988130076bc645ab8fdee3a1ec" "4" "EMPLOYEE_CHANNEL@4" "EMPLOYEE_KEY_SET" "EMPLOYEE_DEL_SET" "_EMPLOYEE|ALICE" "G" "1" "ALICE" "0" "3" "age" "18" "name" "alice" "salary" "8900"
+1651645694.031293 [4 lua] "SADD" "EMPLOYEE_KEY_SET" "ALICE"
+1651645694.031458 [4 lua] "HSET" "_EMPLOYEE|ALICE" "age" "18"
+1651645694.031487 [4 lua] "HSET" "_EMPLOYEE|ALICE" "name" "alice"
+1651645694.031509 [4 lua] "HSET" "_EMPLOYEE|ALICE" "salary" "8900"
+1651645694.031532 [4 lua] "PUBLISH" "EMPLOYEE_CHANNEL@4" "G"
+```
+
+* ConsumerStateTable -> ConsumerTableBase, TableName_KeySet
+    * m_shaPop: consumer_state_table_pops.lua
+        * for every key in keyset
+            * if key is in delkeyset
+                * delete the table hash(tableName + tableSeparator + key)
+            * else
+                * add the field/value pairs in state hash(stateHashPrefix + tableName + tableSeparator + key) to table hash (tableName + tableSeparator + key)
+    * pop(vkco)
+        * NOTE: for pop, if the key is deleted via ProducerStateTable::del, its state hash will be deleted
+```
+>>> db = swsscommon.DBConnector("CONFIG_DB", 0, True)
+>>> p = swsscommon.ProducerStateTable(db, "EMPLOYEE")
+>>> c = swsscommon.ConsumerStateTable(db, "EMPLOYEE")
+>>> values = swsscommon.FieldValuePairs([('name', 'alice'), ('age', '29')])
+>>> p.set("ALICE", values)
+>>> values = swsscommon.FieldValuePairs([('gender', 'female')])
+>>> p.set("ALICE", values)
+>>> values = swsscommon.FieldValuePairs([('name', 'bob'), ('age', '19'), ('salary', '18990')])
+>>> p.set("BOB", values)
+>>> p.delete("BOB")
+>>> c.pop()
+['ALICE', 'SET', (('name', 'alice'), ('age', '29'), ('gender', 'female'))]
+>>> c.pop()
+['BOB', 'DEL', ()]
+```
+```
+$ redis-cli -n 4 monitor | grep EMPLOYEE
+1651652476.417415 [4 127.0.0.1:51230] "EVALSHA" "6875900592cdd1621c6191fe038ec3b29775aa13" "4" "EMPLOYEE_CHANNEL@4" "EMPLOYEE_KEY_SET" "_EMPLOYEE|ALICE" "_EMPLOYEE|ALICE" "G" "ALICE" "name" "alice" "age" "29"
+1651652476.417479 [4 lua] "SADD" "EMPLOYEE_KEY_SET" "ALICE"
+1651652476.417611 [4 lua] "HSET" "_EMPLOYEE|ALICE" "name" "alice"
+1651652476.417638 [4 lua] "HSET" "_EMPLOYEE|ALICE" "age" "29"
+1651652476.417661 [4 lua] "PUBLISH" "EMPLOYEE_CHANNEL@4" "G"
+1651652484.917808 [4 127.0.0.1:51230] "EVALSHA" "6875900592cdd1621c6191fe038ec3b29775aa13" "3" "EMPLOYEE_CHANNEL@4" "EMPLOYEE_KEY_SET" "_EMPLOYEE|ALICE" "G" "ALICE" "gender" "female"
+1651652484.917869 [4 lua] "SADD" "EMPLOYEE_KEY_SET" "ALICE"
+1651652484.917880 [4 lua] "HSET" "_EMPLOYEE|ALICE" "gender" "female"
+1651652493.454814 [4 127.0.0.1:51230] "EVALSHA" "6875900592cdd1621c6191fe038ec3b29775aa13" "5" "EMPLOYEE_CHANNEL@4" "EMPLOYEE_KEY_SET" "_EMPLOYEE|BOB" "_EMPLOYEE|BOB" "_EMPLOYEE|BOB" "G" "BOB" "name" "bob" "age" "19" "salary" "18990"
+1651652493.454900 [4 lua] "SADD" "EMPLOYEE_KEY_SET" "BOB"
+1651652493.455044 [4 lua] "HSET" "_EMPLOYEE|BOB" "name" "bob"
+1651652493.455072 [4 lua] "HSET" "_EMPLOYEE|BOB" "age" "19"
+1651652493.455093 [4 lua] "HSET" "_EMPLOYEE|BOB" "salary" "18990"
+1651652493.455116 [4 lua] "PUBLISH" "EMPLOYEE_CHANNEL@4" "G"
+1651652496.424623 [4 127.0.0.1:51230] "EVALSHA" "88ba6312b8de850b3506966425174d8899aadd93" "4" "EMPLOYEE_CHANNEL@4" "EMPLOYEE_KEY_SET" "_EMPLOYEE|BOB" "EMPLOYEE_DEL_SET" "G" "BOB" "''" "''"
+1651652496.424744 [4 lua] "SADD" "EMPLOYEE_KEY_SET" "BOB"
+1651652496.424754 [4 lua] "SADD" "EMPLOYEE_DEL_SET" "BOB"
+1651652496.424912 [4 lua] "DEL" "_EMPLOYEE|BOB"
+1651652505.884476 [4 127.0.0.1:51064] "EVALSHA" "88270a7c5c90583e56425aca8af8a4b8c39fe757" "3" "EMPLOYEE_KEY_SET" "EMPLOYEE|" "EMPLOYEE_DEL_SET" "128" "_"
+1651652505.884535 [4 lua] "SPOP" "EMPLOYEE_KEY_SET" "128"
+1651652505.884691 [4 lua] "SREM" "EMPLOYEE_DEL_SET" "ALICE"
+1651652505.884698 [4 lua] "HGETALL" "_EMPLOYEE|ALICE"
+1651652505.884711 [4 lua] "HSET" "EMPLOYEE|ALICE" "name" "alice"
+1651652505.884737 [4 lua] "HSET" "EMPLOYEE|ALICE" "age" "29"
+1651652505.884758 [4 lua] "HSET" "EMPLOYEE|ALICE" "gender" "female"
+1651652505.884780 [4 lua] "DEL" "_EMPLOYEE|ALICE"
+1651652505.884800 [4 lua] "SREM" "EMPLOYEE_DEL_SET" "BOB"
+1651652505.884851 [4 lua] "DEL" "EMPLOYEE|BOB"
+1651652505.884854 [4 lua] "HGETALL" "_EMPLOYEE|BOB"
+1651652505.884859 [4 lua] "DEL" "_EMPLOYEE|BOB"
+```
+
+### SubscriberStateTable
+* SubscriberStateTable -> ConsumerTableBase: subscribe to any table entry keyspace event
+    * m_keyspace: subscribed pattern: `__keyspace@<dbID>__:<tableName>|*`
+    * m_keyspace_event_buffer: cache to store keyspace event from m_keyspace
+    * m_table: the table to subscribe
+    * readData(): read from subscribed channel `__keyspace@<dbID>__:<tableName>|*`
+    * hasData()
+    * hasCachedData()
+    * pops(vkco):
+        * for every keyspace event cached in m_keyspace_event_buffer:
+            * if op == "del":
+                * (key, "del", empty)
+            * elif op == "set"
+                * (key, "set", table entry values)
+
+```
+>>> s = swsscommon.SubscriberStateTable(db, "PORT")
+>>> s.pop()
+['Ethernet20', 'SET', (('admin_status', 'up'), ('alias', 'fortyGigE0/20'), ('description', 'Servers4:eth0'), ('index', '5'), ('lanes', '41,42,43,44'), ('mtu', '9100'), ('pfc_asym', 'off'), ('speed', '40000'), ('tpid', '0x8100'))]
+>>> s.pop()
+['Ethernet28', 'SET', (('admin_status', 'up'), ('alias', 'fortyGigE0/28'), ('description', 'Servers6:eth0'), ('index', '7'), ('lanes', '5,6,7,8'), ('mtu', '9100'), ('pfc_asym', 'off'), ('speed', '40000'), ('tpid', '0x8100'))]
+```
+
+
+## references
+* https://github.com/Azure/SONiC/blob/master/doc/warm-reboot/view_switch.md
+* https://redis.io/docs/manual/keyspace-notifications/

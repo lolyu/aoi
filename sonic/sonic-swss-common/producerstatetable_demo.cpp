@@ -13,9 +13,7 @@ int main()
 {
     swss::DBConnector dbConnector("CONFIG_DB", 0, true);
     swss::ProducerStateTable producer(&dbConnector, "EMPLOYEE");
-    std::vector<swss::FieldValueTuple> values;
-    values.push_back({"name", "alice"});
-    values.push_back({"age", "18"});
+    std::vector<swss::FieldValueTuple> values = {{"name", "alice"}, {"age", "18"}};
     for (auto &fv : values) {
         std::cout << fvField(fv) << ": " << fvValue(fv) << std::endl;
     }
