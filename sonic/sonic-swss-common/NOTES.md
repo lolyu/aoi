@@ -225,6 +225,8 @@ True
 | NotificationProducer && NotificationConsumer | NotificationProducer sends the (key, op, values) as a<br /> jsonized string to the channel which NotificationConsumer<br /> will subscribe to, when NotificationConsumer is ready for<br /> IO, it will read channel messages into its cache for future pops                                                                                              |
 
 
+![messaging system](../../_images/sonic_messaging.jpg)
+
 ### ProducerTable && ConsumerTable
 
 * ProducerTable -> TableBase, TableNameKeyValueOpQueues
@@ -509,3 +511,4 @@ $ redis-cli monitor | grep DEMO
 ## references
 * https://github.com/Azure/SONiC/blob/master/doc/warm-reboot/view_switch.md
 * https://redis.io/docs/manual/keyspace-notifications/
+* https://chowdera.com/2021/10/20211029112902093b.html
