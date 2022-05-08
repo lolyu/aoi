@@ -86,3 +86,58 @@ Orch:
             * build consumer based on ConsumerStateTable
     * addExecutor(executor)
     * getExecutor(executorName)
+
+## cfgmgr
+
+### vlanmgrd
+* event loop
+```cpp
+        vector<string> cfg_vlan_tables = {
+            CFG_VLAN_TABLE_NAME,
+            CFG_VLAN_MEMBER_TABLE_NAME,
+        };
+
+        DBConnector cfgDb("CONFIG_DB", 0);
+        DBConnector appDb("APPL_DB", 0);
+        DBConnector stateDb("STATE_DB", 0);
+
+        VlanMgr vlanmgr(&cfgDb, &appDb, &stateDb, cfg_vlan_tables);                     // [1]: build consumers map
+
+        std::vector<Orch *> cfgOrchList = {&vlanmgr};
+
+        swss::Select s;
+        for (Orch *o : cfgOrchList)
+            s.addSelectables(o->getSelectables());                                      // [2]: add consumers to selectable list
+
+        SWSS_LOG_NOTICE("starting main loop");
+        while (true)
+        {
+            Selectable *sel;
+            int ret;
+
+            ret = s.select(&sel, SELECT_TIMEOUT);                                       // [3]: check for event ready Selectable
+            if (ret == Select::ERROR)
+            {
+                SWSS_LOG_NOTICE("Error: %s!", strerror(errno));
+                continue;
+            }
+            if (ret == Select::TIMEOUT)
+            {
+                vlanmgr.doTask();
+                continue;
+            }
+
+            auto *c = (Executor *)sel;
+            c->execute();
+        }
+```
+
+* [1]: `VlanMgr` is a derived class of `Orch`[1]
+    * `Orch` will build consumers map from `cfg_vlan_tables` passed from `VlanMgr` constructor
+    * the consumers are built out of `SubscriberStateTable` because `cfg_vlan_tables` are all from `CONFIG_DB`
+* [2]: add consumers to `Select` object's selectables list
+    * all consumers are initialized with data if the table is not empty(`initializedWithData()` is True) so they could be put into `Select`'s ready queue.
+* [3]: check for event ready `Selectable`
+
+## references
+* https://chowdera.com/2021/10/20211029112902093b.html

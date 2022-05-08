@@ -136,6 +136,10 @@ True
             * if Selectable not has data(Selectable::hasData), continue to handle next Selectable
             * if Selectable has cached data(Selectable::hasCachedData), put back into m_ready
             * Selectable::updateAfterRead
+    * select(Selectable **, timeout)
+    * addSelectable(selectable)
+    * removeSelectable(selectable)
+    * addSelectables(selectables)
 
 * RedisSelect -> Selectable: redis subscribe client that is selectable
 
