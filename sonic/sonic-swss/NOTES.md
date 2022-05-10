@@ -2,7 +2,7 @@
 
 ## class hierarchy
 
-referenced_object:
+* referenced_object:
     * m_objsDependingOnMe
         * std::set<std::string>
     * m_objsReferencingByMe
@@ -10,21 +10,21 @@ referenced_object:
     * m_saiObjectId
     * m_pendingRemove
 
-object_reference_map:
+* object_reference_map:
     * std::map<std::string, referenced_object>
 
-type_map:
+* type_map:
     * std::map<std::string, object_reference_map*>
 
-object_map:
+* object_map:
     * std::map<std::string, sai_object_id_t>
 
-object_map_pair:
+* object_map_pair:
     * std::pair<std::string, sai_object_id_t>
 
-SyncMap: std::multimap<std::string, swss::KeyOpFieldsValuesTuple>
+* SyncMap: std::multimap<std::string, swss::KeyOpFieldsValuesTuple>
 
-Executor -> Selectable: adaptor class to Selectable, provide interfaces(execute() and drain()) for orchagent event poll loop
+* Executor -> Selectable: adaptor class to Selectable, provide interfaces(execute() and drain()) for orchagent event poll loop
     * m_selectable
     * m_orch
     * m_name: name of the executor
@@ -37,7 +37,7 @@ Executor -> Selectable: adaptor class to Selectable, provide interfaces(execute(
     * execute()
     * drain()
 
-Consumer -> Executor: adaptor class to ConsumerTableBase, provide interfaces(execute() and drain()) for orchagent event poll loop
+* Consumer -> Executor: adaptor class to ConsumerTableBase, provide interfaces(execute() and drain()) for orchagent event poll loop
     * m_toSync: cache of KeyOpFieldsValuesTuple events
     * getConsumerTable()
     * getTableName()
@@ -64,7 +64,7 @@ Consumer -> Executor: adaptor class to ConsumerTableBase, provide interfaces(exe
             * construct table
             * refillToSync(table)
 
-Orch:
+* Orch:
     * m_consumerMap
         * std::map<std::string, std::shared_ptr<Executor>>
     * m_publisher
@@ -123,7 +123,7 @@ Orch:
             }
             if (ret == Select::TIMEOUT)
             {
-                vlanmgr.doTask();
+                vlanmgr.doTask();                                                       // [4]: VlanMgr::doVlanTask
                 continue;
             }
 
@@ -138,6 +138,7 @@ Orch:
 * [2]: add consumers to `Select` object's selectables list
     * all consumers are initialized with data if the table is not empty(`initializedWithData()` is True) so they could be put into `Select`'s ready queue.
 * [3]: check for event ready `Selectable`
+* [4]: `VlanMgr::doVlanTask`: call corresponding handler to consume the events stored in the consumer
 
 ## references
 * https://chowdera.com/2021/10/20211029112902093b.html
