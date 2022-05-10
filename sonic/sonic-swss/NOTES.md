@@ -87,6 +87,21 @@
     * addExecutor(executor)
     * getExecutor(executorName)
 
+* OrchDaemon:
+    * m_applDb
+    * m_configDb
+    * m_stateDb
+    * m_chassisAppDb
+    * m_orchList
+    * m_select
+    * init()
+        * build m_orchList
+    * start()
+        * select event loop to 
+    * addOrchList(Orch *)
+    * flush()
+
+
 ## cfgmgr
 
 ### vlanmgrd
