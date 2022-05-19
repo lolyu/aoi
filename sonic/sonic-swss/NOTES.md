@@ -87,6 +87,14 @@
     * addExecutor(executor)
     * getExecutor(executorName)
 
+```
+Orch::doTask --> Consumer::drain --> Orch::doTask(Consumer)
+Consumer::execute --> Consumer::drain --> orch::doTask(Consumer)
+```
+
+* Orch2:
+    * request_
+
 * OrchDaemon:
     * m_applDb
     * m_configDb
@@ -143,7 +151,7 @@
             }
 
             auto *c = (Executor *)sel;
-            c->execute();
+            c->execute();                                                               // [5]
         }
 ```
 
@@ -153,7 +161,25 @@
 * [2]: add consumers to `Select` object's selectables list
     * all consumers are initialized with data if the table is not empty(`initializedWithData()` is True) so they could be put into `Select`'s ready queue.
 * [3]: check for event ready `Selectable`
-* [4]: `VlanMgr::doVlanTask`: call corresponding handler to consume the events stored in the consumer
+* [4]: `VlanMgr::doTask`: call corresponding handler to consume the events stored in the consumer
+* [5]: try to pops out all notification events and call corresponding handler to consume the events
+
+
+## muxorch
+
+* MuxOrch -> Orch2, Observer, Subject:
+    * mux_peer_switch
+    * mux_tunnel_id_
+    * mux_cable_tb_
+    * mux_tunnel_nh_
+    * mux_nexthop_tb_
+    * handler_map_
+        * CONFIG_DB:MUX_CABLE -> MuxOrch::handleMuxCfg
+        * CONFIG_DB:PEER_SWITCH -> MuxOrch::handlePeerSwitch
+    * decap_orch_
+    * neighbor_orch_
+    * fdb_orch_
+    * request_: a MuxCfgRequest object that describes the table key, attribute value types
 
 ## references
 * https://chowdera.com/2021/10/20211029112902093b.html
