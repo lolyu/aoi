@@ -18,6 +18,10 @@ public:
 
     Useless operator+(const Useless &f) const;
 
+    Useless &operator=(const Useless &f);
+
+    Useless &operator=(Useless &&f);
+
     void showData() const;
 
 private:

@@ -16,6 +16,10 @@ int main()
         two.showData();
         three.showData();
         four.showData();
+
+        Useless five = std::move(one);
+        one.showData();
+        five.showData();
     }
     return 0;
 }

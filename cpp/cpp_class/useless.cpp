@@ -78,6 +78,33 @@ Useless Useless::operator+(const Useless &f) const
     return temp;
 }
 
+Useless &Useless::operator=(const Useless &f)
+{
+    if (this == &f) {
+        return *this;
+    }
+    delete[] pc;
+    n = f.n;
+    pc = new char[n];
+    for (int i = 0; i < n; ++i) {
+        pc[i] = f.pc[i];
+    }
+    return *this;
+}
+
+Useless &Useless::operator=(Useless &&f)
+{
+    if (this == &f) {
+        return *this;
+    }
+    delete[] pc;
+    n = f.n;
+    pc = f.pc;
+    f.n = 0;
+    f.pc = nullptr;
+    return *this;
+}
+
 void Useless::showObject() const
 {
     cout << "number of elements: " << n << endl;
