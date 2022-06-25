@@ -18,6 +18,7 @@
 * `asyncio.create_task(coro, *, name=None)`
     * create a `Task` object out of `coro` and schedule its execution.
     * the task is executed in the loop returned by `asyncio.get_running_loop()`
+    * it will submits the coroutine to run in the background, concurrently with the current task and all other tasks, switching between them at the `await` points
 * `asyncio.sleep(delay, result=None)`
 * `asyncio.gather(*aws, return_exceptions=False)`
 
