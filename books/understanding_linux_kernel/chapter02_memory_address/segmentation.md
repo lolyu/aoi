@@ -86,3 +86,14 @@
 * GDT: global descriptor table
 * each CPU has its copy of GDT table
 * each GDT has 18 segment descriptors and 14 null, unused, or reserved entries
+    * `__KERNEL_CS`
+    * `__KERNEL_DS`
+    * `__USER_CS`
+    * `__USER_DS`
+    * `TSS`: task state segment
+        * used for task management
+    * defautl `LDT` table, shared by all processes
+    * TLS: thread local storage
+    * PNPBIOS
+    * APMBIOS   
+![image](https://user-images.githubusercontent.com/35479537/175805524-11985bde-0a40-4bc7-a463-dae95ed5e48f.png)
