@@ -22,6 +22,10 @@
 * `asyncio.sleep(delay, result=None)`
 * `asyncio.gather(*aws, return_exceptions=False)`
 
+## transport and protocol
+* transport is an abstraction for a socket while protocol is the application using the socket
+
+
 ## references
 * https://realpython.com/async-io-python/
 * https://docs.python.org/3.10/library/asyncio-task.html
