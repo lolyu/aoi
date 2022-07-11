@@ -43,13 +43,13 @@
 
 ## PAE: physical address extension
 * with 32 bits virtual address space, only supports up to 2 ^ 32 = 4GB ram
-* to supports 2 ^ 36 = 64GB ram, PAE is introduced to address up to 64GB ran with 32 bits virtual address.
+* to supports 2 ^ 36 = 64GB ram, PAE is introduced to address up to 64GB ram with 32 bits virtual address.
 * 36 bits virtual address space, with 4KB page size, the VPN should take 24 bits, while offset takes 12 bits
     * with 4KB page size, 64GB ram will have 2 ^ 36 / 2 ^ 12 = 2 ^ 24 page frames
 * PTE extends from 4 bytes to 8 bytes
     * page table should take 8 * (2 ^ 24) = 2 ^ 28 bytes space, uses 2 ^ 28 / 2 ^ 10 = 2 ^ 18 page frames
     * one page frame(4KB) could have 4 * 1024 / 8 = 512 PTEs, so 9 bits out of VPN should be used as PTE index
-
+* **NOTE: the virtual address space of PAE is still 2 ^ 32 = 4GB, but the addressable physical addresses are extended to 64GB because of the increase of PTE.**
 
 ## hardware cache
 ![image](https://user-images.githubusercontent.com/35479537/178137953-560661e7-8f71-4c66-8b74-3f0bd684206c.png)
