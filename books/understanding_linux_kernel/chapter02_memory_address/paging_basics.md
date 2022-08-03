@@ -34,6 +34,7 @@
     * VPN of 8 bits, and offset of 6 bits
     * for a PTE of 4 bytes, one page could store 16 = 2 ^ 4 PTEs
         * needs 16 pages to store whole page table, so 4 bites out of VPN needs to index PDE
+            * a page table needs 16 * 1024 / 64 = 1024 / 4 = 256 page frames
         * so 4 bits out of VPN needs to address the PTE offset within a page
 
 * the whole picture:
