@@ -10,6 +10,9 @@
     * probe
     * failed
 
+![image](https://user-images.githubusercontent.com/35479537/185029144-c275c504-ad8f-4e05-8397-8c54a7426f70.png)
+
+
 # when does a valid entry becomes stale?
 ```
        base_reachable_time (since Linux 2.2)
@@ -26,3 +29,4 @@
 * https://linux.die.net/man/7/arp
 * https://man7.org/linux/man-pages/man8/ip-neighbour.8.html
 * https://man7.org/linux/man-pages/man7/arp.7.html
+* https://people.cs.clemson.edu/~westall/853/notes/arpstate.pdf
