@@ -42,14 +42,36 @@
 ![image](https://user-images.githubusercontent.com/35479537/178135114-df099161-80cd-490e-bb6f-b59fc8f239f7.png)
 
 ## PAE: physical address extension
+* PAE is primarily designed to allow larger physical address space, but each single process is still exposed with 2 ^ 32 = 4GB bytes virtual address space.
 * with 32 bits virtual address space, only supports up to 2 ^ 32 = 4GB ram
 * to supports 2 ^ 36 = 64GB ram, PAE is introduced to address up to 64GB ram with 32 bits virtual address.
-* 36 bits virtual address space, with 4KB page size, the VPN should take 24 bits, while offset takes 12 bits
-    * with 4KB page size, 64GB ram will have 2 ^ 36 / 2 ^ 12 = 2 ^ 24 page frames
-* PTE extends from 4 bytes to 8 bytes
-    * page table should take 8 * (2 ^ 24) = 2 ^ 28 bytes space, uses 2 ^ 28 / 2 ^ 10 = 2 ^ 18 page frames
-    * one page frame(4KB) could have 4 * 1024 / 8 = 512 PTEs, so 9 bits out of VPN should be used as PTE index
+* without PAE, the PTE and PDE size is 4 bytes, with 4KB page frame, each page frame could store up to 1024 entries.
+    * without PAE, the page table needs total 2 ^ 20 * 4 bytes = 4MB memory space
+    * for linux, it is two level page table, so page directory has 4MB / 4KB = 1024 entries, which needs 4 * 1024 = 4KB memory in total
+    * to summarize, page directory needs 4KB in memory, each page table is allocated as 4KB in size.
+* with PAE, the PTE and PDE size becomes 8 bytes instead of 4 bytes, so PTE and PDE now supports larger physical address.
+    * with PAE, it still wants to have page directory as 4KB in size and each page table is allocated as 4KB in size.
+    * but as PTE and PDE size is now changed to 8 bytes, one page frame could only holds up to half number of PTEs, and one page directory could only holds up to half number of PDEs -> one page directory could holds up to one fourth number of page frames
+    * need to introduce an extra level of hierarchy of table(2 bits) needed
+
 * **NOTE: the virtual address space of PAE is still 2 ^ 32 = 4GB, but the addressable physical addresses are extended to 64GB because of the increase of PTE.**
+
+* NO PAE, 4KB pages
+
+![image](https://user-images.githubusercontent.com/35479537/188088428-729e9339-52cc-4d04-99e4-ea038972bf12.png)
+
+* NO PAE, 4MB pages
+
+![image](https://user-images.githubusercontent.com/35479537/188088488-b3c49780-df62-45d8-88ce-78f26ccbf8b3.png)
+
+* PAE, 4KB pages
+
+![image](https://user-images.githubusercontent.com/35479537/188088543-899a21e3-30ce-439c-b9b0-4f21a8a5cd1e.png)
+
+* PAE, 2MB pages
+
+![image](https://user-images.githubusercontent.com/35479537/188088598-6a1fa09a-8554-4c38-ba82-20559ea2bca0.png)
+
 
 ## hardware cache
 ![image](https://user-images.githubusercontent.com/35479537/178137953-560661e7-8f71-4c66-8b74-3f0bd684206c.png)
