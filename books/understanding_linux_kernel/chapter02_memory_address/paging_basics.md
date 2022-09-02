@@ -13,6 +13,10 @@
     * PFN: page frame number, the index of which page frame the address is within
     * offset: the offset of the address within a page frame
 * page table: translate virtual address into physical address
+    * **page table maps page to page frame**
+        * page is identified by VPN, page frame is identified by PFN
+        * the size of page table = size of PTE * page number
+    * page table is per process
     * PTE: page table entry
     * each process has its own page table
     * for a virtual address space of 16KB, with 64 bytes pages
