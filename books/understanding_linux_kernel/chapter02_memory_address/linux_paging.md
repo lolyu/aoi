@@ -36,7 +36,42 @@
         * builds the physical addresses map
     * `setup_memory`
         * analyze the table of physical memory regions and initializes kernel's physical memory layout description variables
+
+![image](https://user-images.githubusercontent.com/35479537/188266596-2d7e088c-49b4-4e6d-ae43-6839cee3d8f0.png)
+
+
 ### process page table
+* the virtual address space of a process
+    * `0x00000000` to `0xbfffffff`: can be addressed when the process runs in either `User` or `Kernel` mode
+    * `0xc0000000` to `0xffffffff`: can be addressed only when the process runs in the `Kernel` mode
+* without PAE, one PDE(page global directory entry) maps to (2 ^ 12) * (2 ^ 10) = 2 ^ 22 bytes virtual memory
+    * so in the page global directory, first 0xc0000000 / (2 ^ 22) = 768 entries are used to map virtual addresses lower than `0xc0000000`
+* with PAE, one page global directory entry maps to 2 ^ 30 bytes virtual memory
+    * so in the page global directory, first 0xc0000000 / (2 ^ 30) = 3 entries are used to map virtual addresses lower than `0xc0000000`
+* **the page global directory entries higher than `0xc0000000` are the same for all processes and equal to the corresponding entries of the master kernel global directory table.**
+
+
+### kernel page table
+* how does kernel initialize its page tables?
+    1. the kernel creates a limited address space including the kernel's code and data segments, the initial page tables and 128KB for some dynamic data structures.
+        * let the kernel to install in RAM and initialize its core data structures
+        * operates in real mode in this stage
+    2. the kernel takes advantage of all of the existing RAM and sets up the page tables properly
+        * very first stage of paging
+
+* provisional kernel page tables
+    * the objective of this phase of paging is to allow the 8MB of RAM to be addressed in both CPU real mode and protected mode
+    * 8MB: `0x0` to `0x7fffff`, needs two page tables
+        * one page table could reference (4KB / 4) * 4KB = 4MB virtual memory 
+    * those two page tables are stored right after the end of the kernel's uninitialized data segments(`pg0`)
+    * in real mode, the kernel must maps from virtual address `0x00000000` ~ `0x007fffff` into physical address `0x00000000` ~ `0x007fffff`
+    * in protected mode, the kernel must maps from virtual address `0xc0000000` ~ `0xc07fffff` into physical address `0x00000000` ~ `0x007fffff`
+        * this is because only page directory entries higer than `0xc00000000` are used for kernel only.
+* so the initial provisional kernel page tables are filled with zeroes except for entries 0, 1, 0x300(768) and 0x301(769)
+    * 0 and 1 are used in real mode
+    * 768 and 769 are used in protected mode
+    * 0 and 768 are set to store the physical address of `pg0`
+    * 1 and 769 are set to store the physical address of the page frame following `pg0`
 
 ## references
 * https://lwn.net/Articles/106177/
