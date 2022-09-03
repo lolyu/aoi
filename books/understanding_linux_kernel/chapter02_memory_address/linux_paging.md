@@ -36,6 +36,8 @@
         * builds the physical addresses map
     * `setup_memory`
         * analyze the table of physical memory regions and initializes kernel's physical memory layout description variables
+### process page table
+
 ## references
 * https://lwn.net/Articles/106177/
 * https://www.kernel.org/doc/gorman/html/understand/understand001.html
