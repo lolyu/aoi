@@ -133,6 +133,24 @@
     }
     swapper_pg_dir[0] = swapper_pg_dir[pgd_idx];
 ```
+* **NOTE**: the mapping established by `pagetable_init()`, which maps the initial portion ofthe fourth gigabyte is linear(virtual address `X` maps physical address `X` - `PAGE_OFFSET`
+* more on low memory and high memory
+   * low memory: fixed mapping of physical memory addresses when the size of physical memory is smaller than the maximum size of kernel memory space
+   * high memory: when the size of physical memory size exceeds the maximum size of kernel memory space, it is impossible for the kernel to keep all of the physical memory mapped, this means the kernel needs to start using temporary mappings of the pieces of physical memory that it want to access.
+
+![image](https://user-images.githubusercontent.com/35479537/188302690-68595f96-f722-4514-b215-ede1b8d36145.png)
+
+
+## TLB handling
+* each CPU core has its own TLB to store the mapping from virtual address to physical address
+* when the kernel does a process switch, the kernel will write the addresses of the new page global directory into `cr3` control register, and local TLB entries relative to the old page tables must be flushed
+* the TLB flush could be avoided in the following two cases
+    * if two regular processes share the same set of page tables
+    * when performing a process switch between a regular process and a kernel thread
+        * this is because kernel threads don't have their own set of page tables, they use the set of page tables owned by the regular process that was scheduled last for execution on the CPU
+ 
+### lazy TLB mode
+* if several CPUs are using the same set of page tables and a TLB entry must be flushed on all of them, then the TLB flushing may, in some cases, be delayed on CPUs running kernel threads.
 
 ## references
 * https://lwn.net/Articles/106177/
@@ -140,3 +158,5 @@
 * https://carteryagemann.com/pid-to-cr3.html
 * https://www.kernel.org/doc/gorman/html/understand/understand006.html
 * https://unix.stackexchange.com/questions/4929/what-are-high-memory-and-low-memory-on-linux#:~:text=The%20High%20Memory%20is%20the,its%20own%20address%20space%20first.
+* https://www.kernel.org/doc/Documentation/vm/highmem.txt
+* https://stackoverflow.com/questions/53301388/what-is-kernel-mapping-in-linux
