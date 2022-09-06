@@ -45,7 +45,7 @@ let NCEvents = StormEvents | where State == "NORTH CAROLINA";
 NCEvents
 | take 10
 ```
-* `let` to create a view(virtual table)
+* `let` to create a view
 ```kusto
 let gender = "Female";
 let VT = view () {
