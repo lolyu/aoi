@@ -45,6 +45,22 @@ let NCEvents = StormEvents | where State == "NORTH CAROLINA";
 NCEvents
 | take 10
 ```
+* `let` to create a view(virtual table)
+```kusto
+let gender = "Female";
+let VT = view () {
+print Name = "Alice", Age = 10, Gender = gender, MoreData = pack("Country", "China", "Salary", 10000)
+};
+VT
+```
+* `let` to create a temporary table
+```kusto
+let VT = datatable(Name:string, Age:long, Gender:string, MoreData:dynamic)[
+    "Alice", 20, "Female", dynamic({"Country":"China"}),
+    "Bob", 30, "Male", dynamic({"Salary": 10000})
+];
+VT
+```
 
 ### string operators
 * `term`
