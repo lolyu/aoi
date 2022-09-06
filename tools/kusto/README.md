@@ -166,6 +166,41 @@ StormEvents
 | take 10
 ```
 
+### distinct
+* `distinct` is similar to `summarize by`, which produces a table with the distinct combination of the provided columns of the input table
+* but `distinct` could use `*`, while `summarize by` could not.
+```kusto
+StormEvents
+| distinct State, Source
+| take 5
+```
+
+### sort
+* `sort by Column, ... [asc]`
+
+### join
+* `join` mergesthe rows of two tables to form a new table by matching values of the specified columns from each table.
+```
+LeftTable | join [JoinParameters] (RightTable) on Attributes
+```
+* `LeftTable`: `$left`
+* `RightTable`: `$right`
+
+* example:
+```kusto
+let FLEvents = StormEvents | where State == "FLORIDA" | take 5 | project Source, EventType;
+let NCEvents = StormEvents | where State == "NORTH CAROLINA" | take 5 | project Source, EventType;
+```
+* `FLEvents`
+![image](https://user-images.githubusercontent.com/35479537/188591013-c01a89fd-3ad5-4faa-b030-6452a5985787.png)
+* `NCEvents`
+![image](https://user-images.githubusercontent.com/35479537/188591114-0d3f604d-9a6a-483f-af32-eeeaaa9db89d.png)
+
+
+#### join flavor
+|join flavor|output|
+|-|-|
+|
 
 # reference
 * https://docs.microsoft.com/en-us/azure/data-explorer/kql-quick-reference
