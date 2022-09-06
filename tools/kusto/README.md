@@ -7,6 +7,45 @@
     * the data source could either be a table or an operator that produces a table
     * the pipe `|` delimiter is used to pass the output from previous command into the next command
 
+### query statement
+
+* kusto query statements: query statements in kQL produces tables that could be used in other parts of the query and must end with a semicolon(`;`)
+
+#### let statement
+* let statements are used for
+    * define scalar values
+    * define a table
+    * define a view
+    * define a function
+
+* `let` to define scalar values
+```kusto
+let cutoff = ago(1m);
+StormEvents
+| where StartTime > cutoff
+| count 
+```
+* `let` to define a function
+    * supported arg type:
+        * `bool`
+        * `string`
+        * `long`
+        * `datetime`
+        * `timespan`
+        * `real`
+        * `dynamic`
+```kusto
+let MultiplyByN = (val:long, n:long) { val * n };
+range x from 1 to 5 step 1
+| extend result = MultiplyByN(x, 100)
+```
+* `let` to define a table
+```kusto
+let NCEvents = StormEvents | where State == "NORTH CAROLINA";
+NCEvents
+| take 10
+```
+
 ### string operators
 * `term`
     * kusto splits a string value into maximum sequence of ASCII alphanumeric characters, and each of those sequences is made into a term
@@ -179,28 +218,156 @@ StormEvents
 * `sort by Column, ... [asc]`
 
 ### join
-* `join` mergesthe rows of two tables to form a new table by matching values of the specified columns from each table.
+* `join` merges the rows of two tables to form a new table by matching values of the specified columns from each table.
+* `join` merges the rows that has same columns, and those columns are specified after `on`
 ```
 LeftTable | join [JoinParameters] (RightTable) on Attributes
 ```
 * `LeftTable`: `$left`
 * `RightTable`: `$right`
 
-* example:
-```kusto
-let FLEvents = StormEvents | where State == "FLORIDA" | take 5 | project Source, EventType;
-let NCEvents = StormEvents | where State == "NORTH CAROLINA" | take 5 | project Source, EventType;
-```
-* `FLEvents`
-![image](https://user-images.githubusercontent.com/35479537/188591013-c01a89fd-3ad5-4faa-b030-6452a5985787.png)
-* `NCEvents`
-![image](https://user-images.githubusercontent.com/35479537/188591114-0d3f604d-9a6a-483f-af32-eeeaaa9db89d.png)
-
 
 #### join flavor
 |join flavor|output|
 |-|-|
-|
+|innerunique(default)|deduplication the left table first(keep the first record), then join with the right table|
+|inner|standard join, every row of the left table is joined with each row on the right table that has the same set of `joined-on` keys|
+|leftouter|always contains all records of the left table, even if the join condition doesn't find any matching record|
+|rightouter|always contains all records of the right table|
+|fullouter|always contains all records of both tables|
+|leftanti, anti, or leftantisemi|returns all records from the left side that don't match any record from the right side|
+|rightanti or rightantisemi|returns all records from the right side that don't match any record from the left side|
+|leftsemi|like `inner`, but keeps the records from the left table only|
+|rightsemi|like `inner`, but keeps the records from the right table only|
+
+* let table `X` be
+
+|Name|Count|
+|-|-|
+|a|1|
+|b|2|
+|b|3|
+|c|4|
+* let table `Y` be
+
+|Name|Number|
+|-|-|
+|b|10|
+|c|20|
+|c|30|
+|d|40|
+
+* `innerunique`
+
+|Name|Count|Name1|Number|
+|:----|:----|:----|:----|
+|b|2|b|10|
+|c|4|c|20|
+|c|4|c|30|
+
+* `inner`
+
+|Name|Count|Name1|Number|
+|:----|:----|:----|:----|
+|b|3|b|10|
+|b|2|b|10|
+|c|4|c|20|
+|c|4|c|30|
+
+* `leftouter`
+
+|Name|Count|Name1|Number|
+|:----|:----|:----|:----|
+|b|3|b|10|
+|b|2|b|10|
+|c|4|c|20|
+|c|4|c|30|
+|a|1| | |	
+
+* `rightouter`
+
+|Name|Count|Name1|Number|
+|:----|:----|:----|:----|
+|b|3|b|10|
+|b|2|b|10|
+|c|4|c|20|
+|c|4|c|30|
+| | |d|40|
+
+* `fullouter`
+
+|Name|Count|Name1|Number|
+|:----|:----|:----|:----|
+|b|3|b|10|
+|b|2|b|10|
+|c|4|c|20|
+|c|4|c|30|
+| | |d|40|
+|a|1| | |
+
+* `leftanti`
+
+|Name|Count|
+|:----|:----|
+|a|1|
+
+* `rightanti`
+
+|Name|Count|
+|:----|:----|
+|d|40|
+
+* `leftsemi`
+
+|Name|Count|
+|:----|:----|
+|c|4|
+|b|3|
+|b|2|
+
+* `rightsemi`
+
+|Name|Number|
+|:----|:----|
+|b|10|
+|c|20|
+|c|30|
+
+### union
+* `union` takes two or more tables and returns the rows of all of them
+    * `withsource`: produce an extra column show which table this record is from
+    * `kind` could be either `inner` or `outer`
+        * `inner` keeps only common columns
+        * `outer` keeps all columns, empty cells are set to `null`
+```kusto
+let X = view () {
+StormEvents
+| project-rename EventClass = EventType
+| project State, EventClass
+| take 5
+};
+let Y = view() {
+StormEvents
+| project State, EventType
+| take 5
+};
+union withsource=TableName kind=outer X, Y
+```
+* output
+
+|TableName|State|EventClass|EventType|
+|:----|:----|:----|:----|
+|Y|ATLANTIC SOUTH| |Waterspout|
+|Y|FLORIDA| |Heavy Rain|
+|Y|FLORIDA| |Tornado|
+|Y|GEORGIA| |Thunderstorm Wind|
+|Y|MISSISSIPPI| |Thunderstorm Wind|
+|X|ATLANTIC SOUTH|Waterspout| |
+|X|FLORIDA|Heavy Rain| |
+|X|FLORIDA|Tornado| |
+|X|GEORGIA|Thunderstorm Wind| |
+|X|MISSISSIPPI|Thunderstorm Wind| |
+
 
 # reference
 * https://docs.microsoft.com/en-us/azure/data-explorer/kql-quick-reference
