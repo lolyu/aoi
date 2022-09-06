@@ -91,7 +91,80 @@ StormEvents
 ```
 
 ### summarize
+* `summarize` groups the rows according to the `by` group columns, and calculates aggregations over each group
+* the input rows are arranged into groups having the same values of the `by` expressions, then the specified aggregation functions are computed over each group, producing a row for each group. The result contains the `by` columns and also at least one column for each computed aggregate.
+* syntax:
 
+```
+T | summarize [Column =] Aggregation, ... by [Column =] GroupExpression, ...
+```
+#### unique combination
+* without `by`, `summarize` calculates unique combinations of specified columns:
+* without `summarize`
+```kusto
+StormEvents
+| search State:"MISSISSIPPI"
+| take 5
+| project State, Source
+```
+* output
+![image](https://user-images.githubusercontent.com/35479537/188535378-11d4d3eb-52af-40c6-aeca-1811a21b7636.png)
+
+* with `summarize`
+```kusto
+StormEvents
+| search State:"MISSISSIPPI"
+| take 5
+| summarize by State, Source
+```
+
+* output
+![image](https://user-images.githubusercontent.com/35479537/188535488-00da6d59-c29c-4712-8795-14f1fc57e4d2.png)
+
+#### minimum and maximum timestamp
+```kusto
+StormEvents
+| search State:"MISSISSIPPI"
+| summarize Min = min(StartTime), Max = max(StartTime)
+```
+
+#### count
+* use `summarize` to get a new colum called `StormCount`, which is the count of storm events for a state
+```kusto
+StormEvents
+| summarize StormCount = count() by State
+| sort by StormCount
+| take 5
+```
+
+#### arg_max
+* get most recent storm event for each state
+```kusto
+StormEvents
+| summarize arg_max(StartTime, *) by State
+| take 5
+```
+
+### extend
+* `extend` allows users to extend a table with new columns
+    * the new columns are always shown as the last columns in the list
+* get the longest storm event for each state
+```kusto
+StormEvents
+| extend StormDuration = EndTime - StartTime
+| summarize LongestStorm = max(StormDuration) by State
+| sort by LongestStorm
+| take 10
+```
+
+### project
+* `project` determines the columns to show
+* `project` could also be used to create new columns
+```kusto
+StormEvents
+| project State, StormDuration = EndTime - StartTime
+| take 10
+```
 
 
 # reference
