@@ -273,6 +273,10 @@ LeftTable | join [JoinParameters] (RightTable) on Attributes
 |c|30|
 |d|40|
 
+```kusto
+X | join Y on Name
+```
+
 * `innerunique`
 
 |Name|Count|Name1|Number|
