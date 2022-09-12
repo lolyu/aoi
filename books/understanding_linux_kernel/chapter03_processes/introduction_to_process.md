@@ -94,6 +94,8 @@ struct prio_array {
 |`sibling`|the pointers to the next and previous elements in the list of the sibling processes, those that have the same parent as `P`|
 
 
+## pidhash table and chained lists
+
 
 ## references
 * https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/linux/types.h?h=v6.0-rc5
