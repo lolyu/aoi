@@ -109,6 +109,115 @@ int main()
 ```
 
 ## sending && receiving message
+```cpp
+#include <netlink/netlink.h>
+
+int nl_send(struct nl_sock *, struct nl_msg *)
+int nl_recvmsgs_default(struct nl_sock *);
+```
+
+## message format
+
+### alignment
+* `netlink` enforces strict alignment(defined by `NLMSG_ALGHTO`), fixed to 4 bytes
+* all netlink message headers, begin of payload sections, protocol specific headers, and attribute sections must start at an offset which is a multiple of `NLMSG_ALIGHTO`
+* `nlmsg_total_size`: the total size of a netlink message including the padding to ensure the next message header is aligned correctly.
+```cpp
+#include <netlink/msg.h>
+
+int nlmsg_size(int payloadlen);
+int nlmsg_total_size(int payloadlen);
+int nlmsg_padlen(int payloadlen);
+```
+```
+     <----------- nlmsg_total_size(len) ------------>
+
+     <----------- nlmsg_size(len) ------------>
+
+    +-------------------+- - -+- - - - - - - - +- - -+-------------------+- - -
+
+    |  struct nlmsghdr  | Pad |     Payload    | Pad |  struct nlsmghdr  |
+
+    +-------------------+- - -+- - - - - - - - +- - -+-------------------+- - -
+
+     <---- NLMSG_HDRLEN -----> <- NLMSG_ALIGN(len) -> <---- NLMSG_HDRLEN ---
+
+```
+
+## parse message
+
+### split a byte stream
+* `nlmsg_next()` returns next message header
+* `nlmsg_ok()` checks if another message fits into the remaining number of bytes in the message stream
+* `nlmsg_valid_hdr` checks if a specific netlink message contains at least a minimum of payload
+```cpp
+#include <netlink/msg.h>
+
+struct nlmsghdr *nlmsg_next(struct nlmsghdr *hdr, int *remaining);
+int nlmsg_valid_hdr(const struct nlmsghdr *hdr, int payloadlen);
+int nlmsg_ok(const struct nlmsghdr *hdr, int remaining);
+```
+* how to use?
+```cpp
+void my_parse(void *stream, int length)
+{
+        struct nlmsghdr *hdr = stream;
+ 
+        while (nlmsg_ok(hdr, length)) {
+                // Parse message here
+                hdr = nlmsg_next(hdr, &length);
+        }
+}
+```
+* same as
+```cpp
+nlmsg_for_each(hdr, stream, length) {
+        /* do something with message */
+}
+```
+
+### message payload
+```cpp
+#include <netlink/msg.h>
+
+void *nlmsg_data(const struct nlmsghdr *nlh);
+void *nlmsg_tail(const struct nlmsghdr *nlh);
+int nlmsg_datalen(const struct nlmsghdr *nlh);
+```
+```
+                               <--- nlmsg_datalen(nlh) --->
+
+    +-------------------+- - -+----------------------------+- - -+
+
+    |  struct nlmsghdr  | Pad |           Payload          | Pad |
+
+    +-------------------+- - -+----------------------------+- - -+
+
+nlmsg_data(nlh) ---------------^                                  ^
+
+nlmsg_tail(nlh) --------------------------------------------------^
+```
+
+### message attributes
+```cpp
+#include <netlink/msg.h>
+
+struct nlattr *nlmsg_attrdata(const struct nlmsghdr *hdr, int hdrlen);
+int nlmsg_attrlen(const struct nlmsghdr *hdr, int hdrlen);
+```
+```
+                               <---------------------- payload ------------------------->
+
+                               <----- hdrlen ---->       <- nlmsg_attrlen(nlh, hdrlen) ->
+
+    +-------------------+- - -+-----  ------------+- - -+--------------------------------+- - -+
+
+    |  struct nlmsghdr  | Pad |  Protocol Header  | Pad |           Attributes           | Pad |
+
+    +-------------------+- - -+-------------------+- - -+--------------------------------+- - -+
+
+nlmsg_attrdata(nlh, hdrlen) -----------------------------^
+```
 
 ## references
 * 
