@@ -60,6 +60,8 @@ struct list_head {
 
 ## the process list
 * `task_struct` structure includes a `task` field of type `list_head` whose `prev` and `next` fields point to the previous and to the next `task_struct` element
+* the process list contains all the processes in the system
+* the list head is `sched`(or `swapper`), so called process 0.
 
 ### list of `TASK_RUNNING` processes
 * linux put all runnable processes in the same list called `runqueue`
