@@ -130,10 +130,10 @@ void free_table()
     for (unsigned int i = 0; i < 2048; ++i)
     {
         struct hlist_head *h = &hash_table[i];
-        for (struct hlist_node *n = h->first; n != nullptr; n = n->next)
+        for (struct hlist_node *n = h->first, *nn = nullptr; n != nullptr; n = nn)
         {
+            nn = n->next;
             struct process *p = container_of(n, struct process, node);
-            cout << p->pid << "*";
             hlist_del(&p->node);
             delete p;
         }
@@ -143,7 +143,7 @@ void free_table()
 int main()
 {
     unsigned int pid;
-    for (pid = 0; pid <= 10000; pid += (rand() % 2000))
+    for (pid = 0; pid <= 30000; pid += (rand() % 500))
     {
         create_process(pid);
     }
