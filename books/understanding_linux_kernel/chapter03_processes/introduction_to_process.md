@@ -91,12 +91,51 @@ struct prio_array {
 |field name|description|
 |-|-|
 |real_parent|points to the process descriptor of the process that created `P` or to process of pid 1(`init`) if the parent process no longer exists|
-|parent|points to the current parent of `P`|
+|parent|points to the current parent of `P`, this is the process that must be signaled when the child process terminated|
 |children|the head of the list containing all children created by `P`|
 |`sibling`|the pointers to the next and previous elements in the list of the sibling processes, those that have the same parent as `P`|
 
+* `parent` vs `real_parent`
+	* in normal scenario, `parent` == `real_parent`
+	* if the process is attached by a debugger(GDB), the `parent` will be the debugger so it could receive the process termination signal.
+	* if the process is an orphan, its `parent` and `real_parent` will be `1` in such case. 
 
 ## pidhash table and chained lists
+* linux uses hash tables to retrieve the `task_struct` pointer from PID
+* four hash tables, and their addresses are stored in `pid_hash` array
+
+|hash table type|field name|description|
+|`PIDTYPE_PID`|`pid`|PID of the process|
+|`PIDTYPE_TGID`|`tgid`|PID of thread group leader process|
+|`PIDTYPE_PGID`|`pgrp`|PID of the group leader process|
+|`PIDTYPE_SID`|`session`|PID of the session leader process|
+
+### hash calculation
+```c
+#define pid_hashfn(x) hash_long((unsigned long) x, pidhash_shift)
+
+unsigned long hash_long(unsigned long val, unsigned int bits)
+{
+	unsigned long hash = val * 0x9e370001UL;
+	return hash >> (32 - bits);
+}
+```
+
+### collision
+![image](https://user-images.githubusercontent.com/35479537/192210516-e8f1876c-54e9-4af2-af14-ed4d022a6cdc.png)
+
+
+### how to get all processes in a thread group/group/session
+* `pid` structure
+
+|type|name|description|
+|int|nr|the pid number|
+|struct hlist_node|pid_chain|the links to the next and previous elements in the hash chain list|
+|struct list_head|pid_list| the head of the per-PID list|
+
+* `task_struct` has a field `pids`, which is an array of four struct `pid` structures
+
+![image](https://user-images.githubusercontent.com/35479537/192212692-a6eaa3e4-dc46-41bf-b7c9-0d9bb5ff7f96.png)
 
 
 ## references
