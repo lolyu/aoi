@@ -105,6 +105,7 @@ struct prio_array {
 * four hash tables, and their addresses are stored in `pid_hash` array
 
 |hash table type|field name|description|
+|-|-|-|
 |`PIDTYPE_PID`|`pid`|PID of the process|
 |`PIDTYPE_TGID`|`tgid`|PID of thread group leader process|
 |`PIDTYPE_PGID`|`pgrp`|PID of the group leader process|
@@ -129,6 +130,7 @@ unsigned long hash_long(unsigned long val, unsigned int bits)
 * `pid` structure
 
 |type|name|description|
+|-|-|-|
 |int|nr|the pid number|
 |struct hlist_node|pid_chain|the links to the next and previous elements in the hash chain list|
 |struct list_head|pid_list| the head of the per-PID list|
@@ -137,6 +139,23 @@ unsigned long hash_long(unsigned long val, unsigned int bits)
 
 ![image](https://user-images.githubusercontent.com/35479537/192212692-a6eaa3e4-dc46-41bf-b7c9-0d9bb5ff7f96.png)
 
+## how processes are organized
+* runqueue lists group all processes in `TASK_RUNNING` state.
+* processes in `TASK_STOPPED`, `EXIT_DEAD` or `EXIT_ZOMBIE` are not grouped by any lists.
+* processes in `TASK_INTERRUPTABLE` or `TASK_UNINTERRUPTABLE` state are stored by additional lists - wait queues
+
+### wait queues
+* wait queues implements conditional waits on events
+	* a process wishing to wait for a specific event places itself in the proper wait queue and relinquishes control	
+
+```c
+struct _ _wait_queue_head {
+	spinlock_t lock;
+	struct list_head task_list;
+};
+typedef struct _ _wait_queue_head wait_queue_head_t;
+```
 
 ## references
 * https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/linux/types.h?h=v6.0-rc5
+* https://blog.csdn.net/shenwanjiang111/article/details/105355016
