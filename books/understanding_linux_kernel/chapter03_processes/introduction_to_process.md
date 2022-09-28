@@ -147,15 +147,129 @@ unsigned long hash_long(unsigned long val, unsigned int bits)
 ### wait queues
 * wait queues implements conditional waits on events
 	* a process wishing to wait for a specific event places itself in the proper wait queue and relinquishes control	
-
+* `wait_queue_head_t` represents the queue as a whole. It is the head of the waiting queue.
+* `wait_queue_t` represents the item of the list - a single process waiting in the queue.
+	* `flags`
+		* `0`: exclusive processes, selectively woken up by the kernel when the event occurs
+		* `1`: nonexclusive processes, always woken up by the kernel when the event occurs
+* **QUESTION**:
+	* when will the wait function be executed?
 ```c
 struct _ _wait_queue_head {
 	spinlock_t lock;
 	struct list_head task_list;
 };
 typedef struct _ _wait_queue_head wait_queue_head_t;
+
+struct _ _wait_queue {
+	unsigned int flags;
+	struct task_struct * task;
+	wait_queue_func_t func;
+	struct list_head task_list;
+};
+typedef struct _ _wait_queue wait_queue_t;
 ```
+![image](https://user-images.githubusercontent.com/35479537/192749093-9615d382-2637-4979-b584-0740f37ef483.png)
+
+
+#### wait queue ops
+* `DECLARE_WAIT_QUEUE_HEAD(name)`: declare a new wait queue head variable called `name`
+* `init_wait_queue_head`: initialize a wait queue head variable
+* `init_wait_queue_entry(p, q)`: initialize a `wait_queue_t` structure `q` as follows:
+	* `q->flags = 0;`
+	* `q->task = p;`
+	* `q->func = default_wake_function;`
+* `DEFINE_WAIT`: declare a new `wait_queue_t` variable and initializes it with the descriptor of the process currently running on the CPU
+	* use `autoremove_wake_function()` as wake function
+* `init_waitqueue_func_entry()`: initialize a `wait_queue_t` structure with a custom awakening function.
+* `add_wait_queue()`: inserts a nonexclusive process in the first position of a wait queue list
+* `add_wait_queue_exclusive()`: inserts an exclusive process in the last position of a wait queue list
+* `remove_wait_queue()`: removes a process from a wake queue list
+* `waitqueue_active()`: check if a given wait queue is empty
+
+##### how does a process wait for a specific condition
+* `sleep_on()`:
+	1. put the current process on a wait queue as `TASK_UNINTERRUPATBLE`
+	2. schedule other processes to run
+	3. when the process is awakened, remove the process from the awaken queue
+```c
+void sleep_on(wait_queue_head_t *wq)
+{
+	wait_queue_t wait;
+	init_waitqueue_entry(&wait, current);
+	current->state = TASK_UNINTERRUPTIBLE;
+	add_wait_queue(wq,&wait); /*  wq points to the wait queue head  */
+	schedule( );
+	remove_wait_queue(wq, &wait);
+}
+```
+* `interruptable_sleep_on()`
+* `sleep_on_timeout()`
+* `interruptable_sleep_on_timeout()`
+* `prepare_to_wait()`
+* `prepare_to_wait_exclusive()`
+* `finish_wait()`
+```c
+	// it looks like prepare_to_wait/finish_wait allows the process to wait for a certain event
+    DEFINE_WAIT(wait);
+    prepare_to_wait_exclusive(&wq, &wait, TASK_INTERRUPTIBLE);
+                                /* wq is the head of the wait queue */
+    ...
+    if (!condition)
+        schedule();
+    finish_wait(&wq, &wait);
+```
+* `wait_event` && `wait_event_interruptable`
+```c
+    DEFINE_WAIT(_ _wait);
+    for (;;) {
+        prepare_to_wait(&wq, &_ _wait, TASK_UNINTERRUPTIBLE);
+        if (condition)
+            break;
+        schedule( );
+    }
+    finish_wait(&wq, &_ _wait);
+```
+
+#### how does a kernel awaken up process
+* the kernel awakens processes in the wait queues, put them in the `TASK_RUNNING` state:
+	* `wake_up`
+	* `wake_up_nr`
+	* `wake_up_all`
+	* `wake_up_interruptable`
+	* `wake_up_interruptable_nr`
+	* `wake_up_interruptable_all`
+	* `wake_up_interruptable_sync`
+	* `wake_up_locked`
+* **NOTE**:
+	* `wake_up`:
+		* awaken both `TASK_INTERRUPTABLE` and `TASK_UNINTERRUPTABLE
+		* awaken all nonexclusive and one exclusive
+		* check if any of the woken processes is higher than that of the process currently running in the system invoke `schedule()`
+	* `_interruptable`: means awaken only processes in `TASK_INTERRUPTABLE`
+	* `_nr`: means awaken at most a given number of exclusive processes
+	* `_all`: means awaken all exclusive processes
+	* `_sync`: means no priority check
+	* `_locked`: already hold the spinlock in `wait_queue_heat_t`
+
+```c
+void wake_up(wait_queue_head_t *q)
+{
+	struct list_head *tmp;
+	wait_queue_t *curr;
+
+	list_for_each(tmp, &q->task_list) {
+		curr = list_entry(tmp, wait_queue_t, task_list);
+		if (curr->func(curr, TASK_INTERRUPTIBLE|TASK_UNINTERRUPTIBLE,
+					   0, NULL) && curr->flags)
+			break;
+	}
+}
+```
+* because the exclusive processes are always placed at the end of the wait queue, so if any wait entry flag is `1`(exclusive process), the loop terminates.
+	* so it will awaken at most one process
 
 ## references
 * https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/linux/types.h?h=v6.0-rc5
 * https://blog.csdn.net/shenwanjiang111/article/details/105355016
+* https://stackoverflow.com/questions/19942702/the-difference-between-wait-queue-head-and-wait-queue-in-linux-kernel
