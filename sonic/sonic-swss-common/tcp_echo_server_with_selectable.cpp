@@ -17,16 +17,31 @@
 #define BUFSIZE 4096
 #define SELECT_TIMEOUT 1000
 
-class Client : public swss::Selectable
+class Connection : public swss::Selectable
 {
 public:
-    Client(int clientfd, struct sockaddr_in clientaddr);
+    Connection(std::shared_ptr<swss::Select> selector, int pri = 0) : Selectable(pri), selector(selector) {}
+
+    virtual void doTask() = 0;
+
+    virtual ~Connection() = default;
+
+protected:
+    std::shared_ptr<swss::Select> selector;
+};
+
+class Client : public Connection
+{
+public:
+    Client(std::shared_ptr<swss::Select> selector, int clientfd, struct sockaddr_in clientaddr);
 
     int getFd();
 
     uint64_t readData();
 
     int getLastReadResult();
+
+    void doTask();
 
     ~Client();
 
@@ -37,13 +52,13 @@ private:
     int lastReadResult;
 };
 
-class Acceptor : public swss::Selectable
+class Acceptor : public Connection
 {
 public:
-    static std::map<int, Client *> clients;
-    inline static void addClient(Client *client)
+    static std::map<int, std::shared_ptr<Client>> clients;
+    inline static void addClient(std::shared_ptr<Client> client)
     {
-        clients[client->getFd()] = client;
+        clients[(*client).getFd()] = client;
     }
 
     inline static bool hasClient(int clientfd)
@@ -51,7 +66,7 @@ public:
         return clients.count(clientfd) == 1;
     }
 
-    inline static Client *getClient(int clientfd)
+    inline static std::shared_ptr<Client> getClient(int clientfd)
     {
         return clients[clientfd];
     }
@@ -62,13 +77,13 @@ public:
     }
 
 public:
-    Acceptor(int port = 9000);
+    Acceptor(std::shared_ptr<swss::Select> selector, int port = 9000);
 
     int getFd();
 
     uint64_t readData();
 
-    int getLastAcceptedClientFd();
+    void doTask();
 
     ~Acceptor();
 
@@ -78,13 +93,13 @@ private:
     int lastAcceptedClientFd = -1;
 };
 
-std::map<int, Client *> Acceptor::clients;
+std::map<int, std::shared_ptr<Client>> Acceptor::clients;
 
 int main()
 {
     int ret;
-    std::unique_ptr<Acceptor> acceptor = std::make_unique<Acceptor>();
-    std::unique_ptr<swss::Select> selector = std::make_unique<swss::Select>();
+    std::shared_ptr<swss::Select> selector = std::make_shared<swss::Select>();
+    std::shared_ptr<Acceptor> acceptor = std::make_shared<Acceptor>(selector);
     selector->addSelectable(acceptor.get());
 
     for (;;)
@@ -102,29 +117,13 @@ int main()
             continue;
         }
 
-        if (sel == acceptor.get())
-        {
-            int clientfd = reinterpret_cast<Acceptor *>(acceptor.get())->getLastAcceptedClientFd();
-            if (clientfd < 0)
-            {
-                continue;
-            }
-            selector->addSelectable(Acceptor::getClient(clientfd));
-        }
-        else
-        {
-            if (reinterpret_cast<Client *>(sel)->getLastReadResult() <= 0)
-            {
-                Acceptor::removeClient(sel->getFd());
-                selector->removeSelectable(sel);
-                delete sel;
-            }
-        }
+        auto conn = reinterpret_cast<Connection *>(sel);
+        conn->doTask();
     }
     return 0;
 }
 
-Acceptor::Acceptor(int port)
+Acceptor::Acceptor(std::shared_ptr<swss::Select> selector, int port) : Connection(selector)
 {
     int ret;
     serverfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -164,6 +163,11 @@ int Acceptor::getFd()
 
 uint64_t Acceptor::readData()
 {
+    return 0;
+}
+
+void Acceptor::doTask()
+{
     std::cout << "Accept new connection" << std::endl;
     struct sockaddr_in clientaddr;
     socklen_t len = sizeof(clientaddr);
@@ -173,15 +177,9 @@ uint64_t Acceptor::readData()
         ERROR_THROW("accept4");
     }
 
-    Client *client = new Client(clientfd, clientaddr);
+    std::shared_ptr<Client> client = std::make_shared<Client>(selector, clientfd, clientaddr);
+    selector->addSelectable(client.get());
     addClient(client);
-    lastAcceptedClientFd = clientfd;
-    return clientfd;
-}
-
-int Acceptor::getLastAcceptedClientFd()
-{
-    return lastAcceptedClientFd;
 }
 
 Acceptor::~Acceptor()
@@ -189,7 +187,9 @@ Acceptor::~Acceptor()
     close(serverfd);
 }
 
-Client::Client(int clientfd, struct sockaddr_in clientaddr) : clientfd(clientfd), clientaddr(clientaddr)
+Client::Client(
+    std::shared_ptr<swss::Select> selector,
+    int clientfd, struct sockaddr_in clientaddr) : Connection(selector), clientfd(clientfd), clientaddr(clientaddr)
 {
 }
 
@@ -202,13 +202,23 @@ uint64_t Client::readData()
 {
     std::cout << "Read from connection" << std::endl;
     size_t msg_size = read(clientfd, buffer.data(), BUFSIZE);
-    if (msg_size > 0)
+    lastReadResult = msg_size;
+    return msg_size;
+}
+
+void Client::doTask()
+{
+    int msg_size;
+    if ((msg_size = getLastReadResult()) > 0)
     {
         std::cout << "From client: " << std::string(buffer.data()) << std::endl;
         write(clientfd, buffer.data(), msg_size);
     }
-    lastReadResult = msg_size;
-    return msg_size;
+    else
+    {
+        selector->removeSelectable(this);
+        Acceptor::removeClient(getFd());
+    }
 }
 
 int Client::getLastReadResult()
