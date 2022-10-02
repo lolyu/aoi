@@ -1,4 +1,4 @@
-# notes reading swss-common
+# swss-common note
 
 * the select architecture:
     * [an simple echo tcp server with select/selectable](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/tcp_echo_server_with_selectable.cpp)
