@@ -20,5 +20,13 @@ int main()
     {
         cout << it.first << ": " << it.second << endl;
     }
+
+    cout << endl;
+    swss::RedisCommand command;
+    command.format("keys %s", "PORT|*");
+    cout << command.c_str() << endl;
+
+    swss::RedisReply reply(&context, command, REDIS_REPLY_ARRAY);
+    cout << reply.to_string() << endl;
     return 0;
 }
