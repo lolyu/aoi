@@ -23,6 +23,17 @@
     * `getKeys`
     * `getContent`
 
+* `TableName_KeyValueOpQueues`: defines a list(queue) name for a table
+    * `m_keyvalueop`: `tableName + "_KEY_VALUE_OP_QUEUE"`
+    * `getKeyValueOpQueueTableName()`
+
+* `TableName_KeySet`: defines names of two sets, used for key set and key del
+    * `m_key`: `tableName + "_KEY_SET"`
+    * `m_delkey`: `tableName + "_DEL_SET"`
+    * `getKeySetName()`
+    * `getDelKeySetName()`
+    * `getStateHashPrefix()`: returns `"_"`
+
 * `TableConsumable`(`TableBase`, `TableEntryPoppable`, `RedisSelect`): base selectable table class
 
 * `Table`(`TableBase`, `TableEntryEnumerable`): class to represent a redis table
