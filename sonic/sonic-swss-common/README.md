@@ -1,6 +1,8 @@
 # swss-common note
 
 * the select architecture:
+    * notes:
+        * [swss select architecture](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_select.md)
     * codes:
         * [an simple echo tcp server demo with select/selectable](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/tcp_echo_server_with_selectable_demo.cpp)
 
