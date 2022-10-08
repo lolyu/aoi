@@ -18,6 +18,8 @@
     * `pops(vkco, prefix)`
         * if `m_buffer` is not empty, pops out all items from `m_buffer` and return them.
         * if `m_buffer` is empty, try to parse key events from `m_keyspace_event_buffer` and parse the key events and read related keys' entries from the table and return them.
+            * **NOTE**: redis command other than `del` is regarded as `SET` command, only `del` is regarded as `DEL` command
+                * for example, `set`, `hset`, `hdel` are all regarded as `SET` command
 
 ## notes
 * `SubscriberStateTable` will pops out table entries that has key changes/updates
