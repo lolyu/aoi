@@ -22,8 +22,9 @@
 * db table:
     * notes:
         * [swss redis](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_redis.md)
-        * [swss table](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_table.md)
-        * [subscriberstatetable](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_subscriberstatetable.md)
+        * [swss Table](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_table.md)
+        * [SubscriberStateTable](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_subscriberstatetable.md)
+        * [ProducerStateTable && ConsumerStateTable](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/producerstatetable_and_consumerstatetable.md)
     * codes:
         * [`Table` demo](https://github.com/lolyu/aoi/edit/master/sonic/sonic-swss-common/table_demo.cpp)
         * [`SubscriberStateTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/subscriberstatetable_demo.cpp)
