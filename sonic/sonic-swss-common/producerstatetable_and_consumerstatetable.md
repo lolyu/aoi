@@ -14,7 +14,7 @@
     * `m_shaApplyView`: apply view operation Lua script SHA value
     * `m_tempViewState`: a `TableDump` object as in-memory temporary view of the table
 
-### set operation
+### set
 ```lua
 local added = redis.call('SADD', KEYS[2], ARGV[2])
 for i = 0, #KEYS - 3 do
@@ -48,6 +48,23 @@ end;
         * "ENTRY0"
     * `ARGV[3]` ~ `ARGV[N * 2 + 2`]`: the content of key value pairs
         * `"key0" "value0" "key1" "value1"`
+
+### del
+```lua
+local added = redis.call('SADD', KEYS[2], ARGV[2])
+redis.call('SADD', KEYS[4], ARGV[2])
+redis.call('DEL', KEYS[3])
+if added > 0 then
+    redis.call('PUBLISH', KEYS[1], ARGV[1])
+end
+```
+```
+1665220278.129774 [0 127.0.0.1:51858] "EVALSHA" "88ba6312b8de850b3506966425174d8899aadd93" "4" "PSEUDOTABLE_CHANNEL@0" "PSEUDOTABLE_KEY_SET" "_PSEUDOTABLE:ENTRY0" "PSEUDOTABLE_DEL_SET" "G" "ENTRY0" "''" "''"
+1665220278.129793 [0 lua] "SADD" "PSEUDOTABLE_KEY_SET" "ENTRY0"
+1665220278.129797 [0 lua] "SADD" "PSEUDOTABLE_DEL_SET" "ENTRY0"
+1665220278.129815 [0 lua] "DEL" "_PSEUDOTABLE:ENTRY0"
+```
+* the del op:
 
 ## ConsumerStateTable
 * `ConsumerStateTable`():
