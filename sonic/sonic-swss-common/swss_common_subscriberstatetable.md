@@ -21,7 +21,7 @@
             * **NOTE**: redis command other than `del` is regarded as `SET` command, only `del` is regarded as `DEL` command
                 * for example, `set`, `hset`, `hdel` are all regarded as `SET` command
 
-## notes
+## summary
 * `SubscriberStateTable` will pops out table entries that has key changes/updates
     * table entry add/del
         * set table entry `N`(`N` > 1) times will trigger `N` keyspace events, so `SubscriberStateTable` could pops `N` table entries
