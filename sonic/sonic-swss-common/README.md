@@ -1,4 +1,4 @@
-# swss-common note
+# swss-common notes
 
 * the select architecture:
     * notes:
