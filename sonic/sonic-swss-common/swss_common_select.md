@@ -92,10 +92,8 @@
     2. for every I/O ready selectable `sel`, call `sel->readData()` and insert it into the I/O ready queue
     3. pops out every `Selectable` object `sel` stored in the I/O ready queue:
         * updates its last update time(`sel->updateLastUsedTime()`)
-        * returns the `Selectable` object if it meets the all of following conditions:
-            * it has data as `sel->hasData() == true`
-            * it doesn't have cached data as `sel->hasCachedData() == false`
-        * if not return, put back into the I/O ready queue
+        * returns the `Selectable` object if it has data to read: `sel->hasData() == true`
+        * if it have cached data as `sel->hasCachedData() == false`, put back into the I/O ready queue
     4. if there is a `Selectable` object `sel` returned from step#3, call its after read hook `sel->updateAfterRead()`
 
 ### `Select::select`
