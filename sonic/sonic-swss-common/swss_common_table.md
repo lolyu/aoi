@@ -36,6 +36,12 @@
 
 * `TableConsumable`(`TableBase`, `TableEntryPoppable`, `RedisSelect`): base selectable table class
 
+* `ConsumerTableBase`(`TableConsumable`, `RedisTransactioner`): base class for all consumer tables
+   * `m_buffer`: a `KeyOpFieldValuesTuple` queue to store key events
+   * `pop(key, op, fvs, prefix)`
+      * calls `TableEntryPoppable::pops` to fill up `m_buffer` if `m_buffer` is empty
+      * return the first entry in `m_buffer`
+
 * `Table`(`TableBase`, `TableEntryEnumerable`): class to represent a redis table
     * `Table(db, tableName)`
         * when init with a db connector, the self-owned `m_pipe` buffer size is 1 and `m_buffered` is `false`
