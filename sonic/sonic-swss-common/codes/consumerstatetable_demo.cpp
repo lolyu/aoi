@@ -56,7 +56,8 @@ int main()
 
     swss::Table t(&context, table_name);
     swss::ProducerStateTable pst(&context, table_name);
-    swss::ConsumerStateTable cst(&context, table_name);
+    swss::ConsumerStateTable cst0(&context, table_name);
+    swss::ConsumerStateTable cst1(&context, table_name);
 
     std::vector<swss::KeyOpFieldsValuesTuple> vkco_input = {
         {"ENTRY0", "", {{"key0", "value0"}, {"key1", "value1"}, {"key2", "value2"}}}};
@@ -72,22 +73,29 @@ int main()
     std::cout << "\nAfter first set: " << std::endl;
     vkco_input = {{"ENTRY0", "", {{"key0", "value0"}, {"key1", "value111"}, {"key3", "value3"}}}};
     pst.set(vkco_input);
-    cst.pops(vkco_output);
+    cst0.pops(vkco_output);
     print_vkco(vkco_output);
     print_table_entry(t, "ENTRY0");
 
     std::cout << "\nAfter first del: " << std::endl;
     keys = {"ENTRY0"};
     pst.del(keys);
-    cst.pops(vkco_output);
+    cst0.pops(vkco_output);
     print_vkco(vkco_output);
     print_table_entry(t, "ENTRY0");
+
+    std::cout << "\nAfter second set: " << std::endl;
+    pst.set(vkco_input);
+    cst0.pops(vkco_output);
+    print_vkco(vkco_output);
+    cst1.pops(vkco_output);
+    print_vkco(vkco_output);
 
     t.getKeys(keys);
     for (auto &key : keys)
     {
         t.del(key);
     }
-    // pst.clear();
+    pst.clear();
     return 0;
 }
