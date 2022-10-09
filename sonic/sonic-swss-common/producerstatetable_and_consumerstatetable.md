@@ -287,3 +287,74 @@ redis.call('PUBLISH', KEYS[1], ARGV[1])
 
 ## ConsumerStateTable
 * `ConsumerStateTable`(`ConsumerTableBase`, `TableName_KeySet`):
+    * `m_shaPop`
+    * `pops(vkco)`
+
+### constructor
+```cpp
+    std::string luaScript = loadLuaScript("consumer_state_table_pops.lua");
+    m_shaPop = loadRedisScript(db, luaScript);
+
+    for (;;)
+    {
+        RedisReply watch(m_db, "WATCH " + getKeySetName(), REDIS_REPLY_STATUS);
+        watch.checkStatusOK();
+        multi();
+        enqueue(std::string("SCARD ") + getKeySetName(), REDIS_REPLY_INTEGER);
+        subscribe(m_db, getChannelName(m_db->getDbId()));
+        bool succ = exec();
+        if (succ) break;
+    }
+
+    RedisReply r(dequeueReply());
+    setQueueLength(r.getReply<long long int>());                                    // [1]
+```
+* in the constructor of `ConsumerStateTable`, the key part is in the Redis transaction:
+    1. get the size of the set that stores the table entry keys
+    2. subscribe to the channel owned by the table used by `ProducerStateTable` to notify the key change event
+* from `[1]`, it set current queue length as the size of the set that stores the table entry keys
+    * because the set stores the table entry keys that already have had key change events
+
+### pops
+```lua
+redis.replicate_commands()
+local ret = {}
+local tablename = KEYS[2]
+local stateprefix = ARGV[2]
+local keys = redis.call('SPOP', KEYS[1], ARGV[1])
+local n = table.getn(keys)
+for i = 1, n do
+   local key = keys[i]
+   -- Check if there was request to delete the key, clear it in table first
+   local num = redis.call('SREM', KEYS[3], key)
+   if num == 1 then
+      redis.call('DEL', tablename..key)
+   end
+   -- Push the new set of field/value for this key in table
+   local fieldvalues = redis.call('HGETALL', stateprefix..tablename..key)
+   table.insert(ret, {key, fieldvalues})
+   for i = 1, #fieldvalues, 2 do
+      redis.call('HSET', tablename..key, fieldvalues[i], fieldvalues[i + 1])
+   end
+   -- Clean up the key in temporary state table
+   redis.call('DEL', stateprefix..tablename..key)
+end
+return ret
+```
+* parameters:
+    * `KEYS[1]`: the set that stores table entry keys
+    * `KEYS[2]`: the table prefix(table name + table separator)
+    * `KEYS[3]`: the set that stores the del table entry keys
+* for any table entry key stored in the set that stores table entry keys:
+    * if it is also stored in the set that stores del table entry keys, its formal table entry will be removed first
+    * move the content from the temporary table entry to the formal table entry(remove the prefix in this case)
+    * return the temporary table entry
+
+## summary
+* the set that stores the table entry keys: `tableName + "_KEY_SET"`
+    * entry keys being included in this set means that they had key changes
+    * the field/value pairs stored in the temporary table key will be moved to the formal table by `ConsumerStateTable::pops`
+    * `ConsumerStateTable::pops` only returns the field/value pairs stored in the temporary table key instead all field/value pairs in the table key
+* the set that stores the del table entry keys: `tableName + "_DEL_SET"`
+    * entry keys being included in this set means that they had key del operations
+    * its formal table key will be removed by `ConsumerStateTable::pops`
