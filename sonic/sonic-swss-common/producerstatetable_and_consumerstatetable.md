@@ -358,3 +358,6 @@ return ret
 * the set that stores the del table entry keys: `tableName + "_DEL_SET"`
     * entry keys being included in this set means that they had key del operations
     * its formal table key will be removed by `ConsumerStateTable::pops`
+* for key changes from a `ProducerStateTable` object, `ProducerStateTable` will publish key events to the channel related to the table name.
+    * the key events could be received by multiple `ConsumerStateTable` objects, but only the first `ConsumerStateTable` object that calls `pops` could get the key changes, others don't.
+    * this is because the key changes are stored in a temporary table key, and it is moved to a formal table key by the first `pops` call.
