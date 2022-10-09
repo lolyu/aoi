@@ -28,3 +28,5 @@
     * codes:
         * [`Table` demo](https://github.com/lolyu/aoi/edit/master/sonic/sonic-swss-common/table_demo.cpp)
         * [`SubscriberStateTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/subscriberstatetable_demo.cpp)
+        * [`ProducerStateTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/producerstatetable_demo.cpp)
+        * [`ConsumerStateTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/consumerstatetable_demo.cpp)
