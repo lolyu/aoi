@@ -371,3 +371,4 @@ return ret
 * both `ProducerStateTable::set` and `ProducerStateTable::del` will check if the updated entry key is in the set key `set`, and `ProducerStateTable` only publish key change notification only if the updated entry key is not existed.
     * so for multiple operations from `ProducerStateTable`, `ConsumerStateTable` will only receives one notification.
     * so `ConsumerStateTable::pops` could consumes all key changes starting the first key change from `ProducerStateTable`. 
+    * this increases efficiency
