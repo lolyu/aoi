@@ -358,6 +358,11 @@ return ret
 * the set that stores the del table entry keys: `tableName + "_DEL_SET"`
     * entry keys being included in this set means that they had key del operations
     * its formal table key will be removed by `ConsumerStateTable::pops`
-* for key changes from a `ProducerStateTable` object, `ProducerStateTable` will publish key events to the channel related to the table name.
-    * the key events could be received by multiple `ConsumerStateTable` objects, but only the first `ConsumerStateTable` object that calls `pops` could get the key changes, others don't.
-    * this is because the key changes are stored in a temporary table key, and it is moved to a formal table key by the first `pops` call.
+* for a key change from a `ProducerStateTable` object, `ProducerStateTable` will publish this key event to the channel related to the table name.
+    * this key event could be received by multiple `ConsumerStateTable` objects, but only the first `ConsumerStateTable` object that calls `pops` could get the key changes, others don't.
+        * this is because:
+            * this key change are stored in a temporary table key, and it is moved to a formal table key by the first `pops` call.
+            * the key that has key changes is stored in Redis `SET`s, and it is removed from the `SET`s by the first `pops` call.
+* for multiple key changes from a `ProducerStateTable` object, because `ProducerStateTable` uses two Redis `SET`s to store the updated keys, the first `ConsumerStateTable` object could consume those changes in one `pops` call
+* so for `ProducerStateTable` and `ConsumerStateTable`, there could be multiple `ProducerStateTable` objects writing to the same table, but those key updates could only be consumed by one `ConsumerStateTable` objects.
+
