@@ -365,4 +365,6 @@ return ret
             * the key that has key changes is stored in Redis `SET`s, and it is removed from the `SET`s by the first `pops` call.
 * for multiple key changes from a `ProducerStateTable` object, because `ProducerStateTable` uses two Redis `SET`s to store the updated keys, the first `ConsumerStateTable` object could consume those changes in one `pops` call
 * so for `ProducerStateTable` and `ConsumerStateTable`, there could be multiple `ProducerStateTable` objects writing to the same table, but those key updates could only be consumed by one `ConsumerStateTable` objects.
-
+* for operation sequences from a `ProducerStateTable`: `set, set, del` and `del, set, set`, they will generate same two key set/del `SET`s with same content(both has a single item, which is the table entry key), how does the `ConsumerStateTable` creates different table output?
+    * for `set, set, del`, the `del` operation will delete the temporary table key, and `ConsumerStateTable::pops` will delete the formal table key, so there will be no table entry.
+    * for `del, set, set`, the temporary table key still stores the key changes from the following two `set`s, as `ConsumerStateTable::pops` delete the formal table key, after `ConsumerStateTable::pops`, now the table key will stores the field/value pairs only from the two `set`s
