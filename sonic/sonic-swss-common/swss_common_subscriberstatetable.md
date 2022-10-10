@@ -32,3 +32,4 @@
     * please refer to the `SubscriberStateTable` [code demo](https://github.com/lolyu/aoi/tree/master/sonic/sonic-swss-common/codes) for more details about this
 * **NOTE**: redis command other than `del` is regarded as `SET` command, only `del` is regarded as `DEL` command
     * for example, `set`, `hset`, `hdel` are all regarded as `SET` command
+* for key changes over a table, they could be consumed by multiple `SubscriberStateTable` as the updated table entry keys are included in the keyspace event.
