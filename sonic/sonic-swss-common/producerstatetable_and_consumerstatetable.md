@@ -368,3 +368,6 @@ return ret
 * for operation sequences from a `ProducerStateTable`: `set, set, del` and `del, set, set`, they will generate same two key set/del `SET`s with same content(both has a single item, which is the table entry key), how does the `ConsumerStateTable` creates different table output?
     * for `set, set, del`, the `del` operation will delete the temporary table key, and `ConsumerStateTable::pops` will delete the formal table key, so there will be no table entry.
     * for `del, set, set`, the temporary table key still stores the key changes from the following two `set`s, as `ConsumerStateTable::pops` delete the formal table key, after `ConsumerStateTable::pops`, now the table key will stores the field/value pairs only from the two `set`s
+* both `ProducerStateTable::set` and `ProducerStateTable::del` will check if the updated entry key is in the set key `set`, and `ProducerStateTable` only publish key change notification only if the updated entry key is not existed.
+    * so for multiple operations from `ProducerStateTable`, `ConsumerStateTable` will only receives one notification.
+    * so `ConsumerStateTable::pops` could consumes all key changes starting the first key change from `ProducerStateTable`. 
