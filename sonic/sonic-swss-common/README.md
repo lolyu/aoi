@@ -22,12 +22,15 @@
 * db table:
     * notes:
         * [swss redis](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_redis.md)
-        * [swss Table](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_table.md)
-        * [SubscriberStateTable](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_subscriberstatetable.md)
-        * [ProducerStateTable && ConsumerStateTable](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/producerstatetable_and_consumerstatetable.md)
+        * [swss `Table`](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_table.md)
+        * [`SubscriberStateTable`](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_subscriberstatetable.md)
+        * [`ProducerStateTable` && `ConsumerStateTable`](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/producerstatetable_and_consumerstatetable.md)
+        * [`NotificationProducer` && `NotificationConsumer`](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_notificationproducer_and_notificationconsumer.md)
     * codes:
         * [`Table` demo](https://github.com/lolyu/aoi/edit/master/sonic/sonic-swss-common/table_demo.cpp)
         * [`SubscriberStateTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/subscriberstatetable_demo.cpp)
         * [`ProducerStateTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/producerstatetable_demo.cpp)
         * [`ConsumerStateTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/consumerstatetable_demo.cpp)
         * [`ProducerTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/producertable_demo.cpp)
+        * [`NotificationProducer` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/notificationproducer_demo.cpp)
+         
