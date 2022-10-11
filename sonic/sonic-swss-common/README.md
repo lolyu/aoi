@@ -25,6 +25,7 @@
         * [swss `Table`](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_table.md)
         * [`SubscriberStateTable`](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_subscriberstatetable.md)
         * [`ProducerStateTable` && `ConsumerStateTable`](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/producerstatetable_and_consumerstatetable.md)
+        * [`ProducerTable` && `ConsumerTable`](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/notificationproducer_and_notificationconsumer.md)
         * [`NotificationProducer` && `NotificationConsumer`](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/swss_common_notificationproducer_and_notificationconsumer.md)
     * codes:
         * [`Table` demo](https://github.com/lolyu/aoi/edit/master/sonic/sonic-swss-common/table_demo.cpp)
