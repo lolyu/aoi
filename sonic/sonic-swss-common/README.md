@@ -30,3 +30,4 @@
         * [`SubscriberStateTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/subscriberstatetable_demo.cpp)
         * [`ProducerStateTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/producerstatetable_demo.cpp)
         * [`ConsumerStateTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/consumerstatetable_demo.cpp)
+        * [`ProducerTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/producertable_demo.cpp)
