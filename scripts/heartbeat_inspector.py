@@ -11,6 +11,7 @@ from scapy.all import AsyncSniffer
 from scapy.all import ICMP
 from scapy.all import IP
 from scapy.all import sniff
+from scapy.all import wrpcap
 from scapy.fields import ByteEnumField
 from scapy.fields import IntField
 from scapy.fields import LongField
@@ -88,14 +89,11 @@ class HeartbeatPayload(Packet):
         )
     ]
 
-    def guess_payload_class(self, payload):
-        return TlvHeader
-
 
 class TlvHeader(Packet):
     name = "TlvHeader"
 
-    TLV_COMMAND = 0x01
+    TLV_COMMAND = 0x05
     TLV_DUMMY = 0xfe
     TLV_SENTINEL = 0xff
 
@@ -122,15 +120,23 @@ class TlvCommand(Packet):
 
     fields_desc = [
         ByteEnumField(
-            "command",
+            "command_type",
             None,
             {COMMAND_NONE: "COMMAND_NONE", COMMAND_SWITCH_ACTIVE: "COMMAND_SWITCH_ACTIVE", COMMAND_MUX_PROBE: "COMMAND_MUX_PROBE"}
         )
     ]
 
+    def extract_padding(self, s):
+        """No raw payload for TLV."""
+        return "", s
+
 
 class TlvSentinel(Packet):
     name = "TlvSentinel"
+
+    def extract_padding(self, s):
+        """No raw payload for TLV."""
+        return "", s
 
 
 def sniff_packet_from_port(port, capture_time=None, capture_count=None):
@@ -207,20 +213,24 @@ def inspect_packets(packets):
                     return "TLV sentinel has unzero(%s) length" % packet[TlvHeader].length, False
                 if len(tlv_header.payload) != 0:
                     return "TLV sentinel has payload as %r" % packet[TlvHeader].payload, False
+                # TlvSentinel as the last TLV in TLVs, any more TLVs will be regareded as error
                 break
             elif tlv_header.type == TlvHeader.TLV_COMMAND:
                 if TlvCommand not in tlv_header:
                     return "No TLV command in the packet", False
-                if packet[TlvCommand].command not in (TlvCommand.COMMAND_SWITCH_ACTIVE, TlvCommand.COMMAND_MUX_PROBE):
-                    return "Unsupported COMMAND type %s" % packet[TlvCommand].command, False
+                if tlv_header[TlvCommand].command_type not in (TlvCommand.COMMAND_SWITCH_ACTIVE, TlvCommand.COMMAND_MUX_PROBE):
+                    return "Unsupported COMMAND type %s" % tlv_header[TlvCommand].command_type, False
             else:
                 return "Unsupported TLV type %s" % (packet[TlvHeader].type), False
         else:
+            # not break from the for loop, no TlvSentinel in the TLVs
             return "No TlvSentinel defined in the payload", False
 
-        for j in range(i, len(tlv_list)):
+        # show the TLVs after TlvSentinel if any
+        for j in range(i + 1, len(tlv_list)):
             logging.v3("%sth TLV: %r", j + 1, tlv_list[j])
 
+        # if TlvSentinel is not the last TLV in TLVs, error
         if i != len(tlv_list) - 1:
             return "TlvSentinel is not the last TLV listed in the payload", False
 
@@ -274,6 +284,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="link prober heartbeats inspector.")
     parser.add_argument("-p", "--port", help="the port to capture packets from")
     parser.add_argument("-f", "--file", help="pcap file to read packets from")
+    parser.add_argument("-o", "--output", help="pcap file to write captured packets to")
 
     parser.add_argument("-c", "--count", type=int, required=False, help="the number of packets to process")
     parser.add_argument("-t", "--time", type=int, required=False, help="time to capture packets from the specified port, in seconds")
@@ -322,5 +333,7 @@ if __name__ == "__main__":
             # prefer capture time here
             args.count = None
         packets = sniff_packet_from_port(args.port, args.time, args.count)
+        if args.output is not None:
+            wrpcap(args.output, packets)
 
     inspect_packets(packets)
