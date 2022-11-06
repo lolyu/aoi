@@ -6,3 +6,9 @@
 #### handler tracking
 * https://www.boost.org/doc/libs/1_67_0/doc/html/boost_asio/overview/core/handler_tracking.html
 * https://github.com/chriskohlhoff/asio/blob/master/asio/src/tools/handlerviz.pl
+
+
+#### socket
+* boost asio socket is not copy-constructable, if you want to pass it to functions, use reference or move-construct instead
+
+##### raw socket
