@@ -49,6 +49,8 @@ public:
         else
         {
             std::cout << bytes_transferred << " bytes read" << std::endl;
+            // socket's receive and async_receive are all of the behavior read-some
+            // all could result in short reads
             bytes_transferred = raw_socket.receive(boost::asio::buffer(buffer, buffer.size()));
             std::cout << bytes_transferred << " bytes read" << std::endl;
 
