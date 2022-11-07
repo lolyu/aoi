@@ -24,15 +24,20 @@ void handle_conn(tcp::socket socket)
             std::cout << "Accept connection from " << socket.remote_endpoint() << std::endl;
         }
 
-        while (socket.is_open())
+        tcp::iostream stream(std::move(socket));
+        while (stream.socket().is_open())
         {
-            size_t bytes_received = socket.read_some(boost::asio::buffer(buffer), error);
-            if (error == boost::asio::error::eof)
-                break;
-            else if (error)
-                throw boost::system::system_error(error);
+            std::string line;
+            std::getline(stream, line);
+            std::cout << line << std::endl;
+            stream << line << std::endl;
+            // size_t bytes_received = socket.read_some(boost::asio::buffer(buffer), error);
+            // if (error == boost::asio::error::eof)
+            //     break;
+            // else if (error)
+            //     throw boost::system::system_error(error);
 
-            socket.write_some(boost::asio::buffer(buffer, bytes_received));
+            // socket.write_some(boost::asio::buffer(buffer, bytes_received));
         }
     }
     catch (const std::exception &e)
