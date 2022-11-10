@@ -35,7 +35,7 @@ route(dest IP addr, TOS) -> gateway, interface
 ```
 
 ## linux as a weak end system
-### observations
+### summary
 If a linux device A is multihomed:
 
 **RULE#1: A will have multiple routes to the same subnet destination, all the traffic to the subnet(no matter the source address) are always forwarded based by the very first route.**
