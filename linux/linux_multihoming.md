@@ -1,4 +1,5 @@
 # linux multihoming
+In this article, we will briefly discuss the behabvior of multihomed linux device and how to configure linux policy-based routing to make it follow the strong end system model.
 
 ## multihoming
 A `multihomed` host could be simply regarded as host that has multiple interfaces with IP addresses in the same subnet.
@@ -34,6 +35,12 @@ route(dest IP addr, TOS) -> gateway, interface
 ```
 
 ## linux as a weak end system
+### observations
+If a linux device A is multihomed:
+
+**RULE#1: A will have multiple routes to the same subnet destination, all the traffic to the subnet(no matter the source address) are always forwarded based by the very first route.**
+
+**RULE#2: For other devices in the subnet, say B, will have arp entries for those addresses configured on A mapped to the same layer 2 address, which is the physical address of the interface used to forward traffic determined by RULE#1**.
 
 ### build a multihomed linux
 * start a base linux container `multihome_linux`
@@ -113,6 +120,13 @@ root@aa6d43237d4f:/# ip addr
     link/ether 2a:03:5b:e3:57:cf brd ff:ff:ff:ff:ff:ff link-netnsid 0
     inet 192.168.0.102/21 scope global eth2_int
        valid_lft forever preferred_lft forever
+# ip route show table main
+default via 172.17.0.1 dev eth0
+172.17.0.0/16 dev eth0 proto kernel scope link src 172.17.0.10
+192.168.0.0/21 dev eth0_int proto kernel scope link src 192.168.0.100
+192.168.0.0/21 dev eth1_int proto kernel scope link src 192.168.0.101
+192.168.0.0/21 dev eth2_int proto kernel scope link src 192.168.0.102
+192.168.0.0/21 dev eth3_int proto kernel scope link src 192.168.0.103
 ```
 
 ### packet forwarding in the multihomed linux
@@ -176,3 +190,44 @@ tcpdump: listening on eth0_int, link-type EN10MB (Ethernet), snapshot length 262
 04:35:27.482557 1a:bb:a8:10:6a:82 > 12:21:25:0b:74:e6, ethertype IPv4 (0x0800), length 66: (tos 0x0, ttl 64, id 41142, offset 0, flags [DF], proto TCP (6), length 52)
     192.168.0.103.37377 > 192.168.0.1.9000: Flags [.], cksum 0x81df (incorrect -> 0x5086), ack 1, win 8, options [nop,nop,TS val 4264420786 ecr 26583053], length 0
 ```
+* reorder the routes to subnet `192.168.0.0/21` by down/up `eth0_int`
+```
+$ sudo nsenter -t 26700 -n ip link set eth0_int down
+$ sudo nsenter -t 26700 -n ip link set eth0_int up
+```
+* the route table reordered
+```
+# ip route show table main
+default via 172.17.0.1 dev eth0
+172.17.0.0/16 dev eth0 proto kernel scope link src 172.17.0.10
+192.168.0.0/21 dev eth1_int proto kernel scope link src 192.168.0.101
+192.168.0.0/21 dev eth2_int proto kernel scope link src 192.168.0.102
+192.168.0.0/21 dev eth3_int proto kernel scope link src 192.168.0.103
+192.168.0.0/21 dev eth0_int proto kernel scope link src 192.168.0.100
+```
+* start a client inside `multihome_linux` with source address `192.168.0.103`
+```
+# nc -s 192.168.0.103 192.168.0.1 9000
+```
+* verify that the traffic now is forwarded via interface `eth1_int` as it is the output device in the very first route now
+```
+# tcpdump -i eth1_int -nev
+tcpdump: listening on eth1_int, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+07:16:22.708703 6e:05:47:26:bc:ea > ff:ff:ff:ff:ff:ff, ethertype ARP (0x0806), length 42: Ethernet (len 6), IPv4 (len 4), Request who-has 192.168.0.1 tell 192.168.0.103, length 28
+07:16:22.708753 12:21:25:0b:74:e6 > 6e:05:47:26:bc:ea, ethertype ARP (0x0806), length 42: Ethernet (len 6), IPv4 (len 4), Reply 192.168.0.1 is-at 12:21:25:0b:74:e6, length 28
+07:16:22.708758 6e:05:47:26:bc:ea > 12:21:25:0b:74:e6, ethertype IPv4 (0x0800), length 74: (tos 0x0, ttl 64, id 5297, offset 0, flags [DF], proto TCP (6), length 60)
+    192.168.0.103.33395 > 192.168.0.1.9000: Flags [S], cksum 0x81e7 (incorrect -> 0x6e74), seq 963462565, win 64240, options [mss 1460,sackOK,TS val 4274076012 ecr 0,nop,wscale 13], length 0
+07:16:22.708788 12:21:25:0b:74:e6 > 6e:05:47:26:bc:ea, ethertype IPv4 (0x0800), length 74: (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    192.168.0.1.9000 > 192.168.0.103.33395: Flags [S.], cksum 0x81e7 (incorrect -> 0xb6e3), seq 3867006841, ack 963462566, win 65160, options [mss 1460,sackOK,TS val 36238279 ecr 4274076012,nop,wscale 13], length 0
+07:16:22.708801 6e:05:47:26:bc:ea > 12:21:25:0b:74:e6, ethertype IPv4 (0x0800), length 66: (tos 0x0, ttl 64, id 5298, offset 0, flags [DF], proto TCP (6), length 52)
+    192.168.0.103.33395 > 192.168.0.1.9000: Flags [.], cksum 0x81df (incorrect -> 0xe436), ack 1, win 8, options [nop,nop,TS val 4274076012 ecr 36238279], length 0
+07:16:27.836450 12:21:25:0b:74:e6 > 6e:05:47:26:bc:ea, ethertype ARP (0x0806), length 42: Ethernet (len 6), IPv4 (len 4), Request who-has 192.168.0.103 tell 192.168.0.1, length 28
+07:16:27.836487 6e:05:47:26:bc:ea > 12:21:25:0b:74:e6, ethertype ARP (0x0806), length 42: Ethernet (len 6), IPv4 (len 4), Reply 192.168.0.103 is-at 6e:05:47:26:bc:ea, length 28
+# ip neighbor
+192.168.0.1 dev eth1_int lladdr 12:21:25:0b:74:e6 STALE
+172.17.0.1 dev eth0 lladdr 02:42:26:a8:ac:8d STALE
+```
+
+
+## references
+* https://www.rfc-editor.org/rfc/rfc1122
