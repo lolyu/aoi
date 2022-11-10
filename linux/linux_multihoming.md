@@ -231,3 +231,4 @@ tcpdump: listening on eth1_int, link-type EN10MB (Ethernet), snapshot length 262
 
 ## references
 * https://www.rfc-editor.org/rfc/rfc1122
+* http://linux-ip.net/html/routing-selection.html
