@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 
+// https://wordaligned.org/articles/cpp-streambufs
+
 using namespace std;
 
 int main()
