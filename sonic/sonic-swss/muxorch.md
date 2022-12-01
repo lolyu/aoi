@@ -187,4 +187,6 @@ void MuxCable::setState(string new_state)
 * `nbrhandler(false)`
 * `aclhandler(..., true)`
 
+## fdb handling
+
 ## neighbor handling
