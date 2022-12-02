@@ -181,6 +181,28 @@ void MuxCable::setState(string new_state)
     * to Standby: `stateStandby`
     * Init to Standby: `stateStandby`
 
+#### MuxCable::nbrHandler
+```cpp
+bool MuxCable::nbrHandler(bool enable, bool update_rt)
+{
+    if (enable)
+    {
+        return nbr_handler_->enable(update_rt);
+    }
+    else
+    {
+        sai_object_id_t tnh = mux_orch_->createNextHopTunnel(MUX_TUNNEL, peer_ip4_);
+        if (tnh == SAI_NULL_OBJECT_ID)
+        {
+            SWSS_LOG_INFO("Null NH object id, retry for %s", peer_ip4_.to_string().c_str());
+            return false;
+        }
+
+        return nbr_handler_->disable(tnh);
+    }
+}
+```
+
 #### MuxCable::stateInitActive
 * `nbrhandler(true, false)`
 #### MuxCable::stateActive
@@ -190,12 +212,64 @@ void MuxCable::setState(string new_state)
 * `nbrhandler(false)`
 * `aclhandler(..., true)`
 
-## fdb handling
 
+
+## fdb handling
+```cpp
+void MuxOrch::updateFdb(const FdbUpdate& update)
+{
+    if (!update.add)
+    {
+        /*
+         * For Mac aging, flush events, skip updating mux neighbors.
+         * Instead, wait for neighbor update events
+         */
+        return;
+    }
+
+    NeighborEntry neigh;
+    MacAddress mac;
+    MuxCable* ptr;
+    for (auto nh = mux_nexthop_tb_.begin(); nh != mux_nexthop_tb_.end(); ++nh)
+    {
+        // get the neighbor and mac from neigh_orch
+        auto res = neigh_orch_->getNeighborEntry(nh->first, neigh, mac);
+
+        // only process nexthop that has the same mac address as the fdb update
+        if (!res || update.entry.mac != mac)
+        {
+            continue;
+        }
+
+        // for nexthops stored that has same mac address but different port name as the fdb update
+        // 1. remove the nexthop from the old mux port
+        // 2. add the nexthop to the new mux port based on the fdb update port
+        if (nh->second != update.entry.port_name)
+        {
+            // if current nexthop port is not empty, remove it from current mux port
+            if (!nh->second.empty() && isMuxExists(nh->second))
+            {
+                ptr = getMuxCable(nh->second);
+                if (ptr->isIpInSubnet(nh->first.ip_address))
+                {
+                    continue;
+                }
+                nh->second = update.entry.port_name;
+                ptr->updateNeighbor(nh->first, false);
+            }
+            // add the nexthop to the mux port as the fdb update
+            if (isMuxExists(update.entry.port_name))
+            {
+                ptr = getMuxCable(update.entry.port_name);
+                ptr->updateNeighbor(nh->first, true);
+            }
+        }
+    }
+}
+```
 ## neighbor handling
 
-### MuxOrch::updateNeighbor
-#### neighbor update struct
+### neighbor update struct
 ```cpp
 typedef NextHopKey NeighborEntry;
 
@@ -220,3 +294,156 @@ struct NeighborUpdate
 };
 
 ```
+* for neighbor learnt from vlan device, `NexthopKey::alias` stores the vlan interface name
+### MuxOrch::updateNeighbor
+```cpp
+void MuxOrch::updateNeighbor(const NeighborUpdate &update)
+{
+    if (mux_cable_tb_.empty())
+    {
+        return;
+    }
+
+    string port, old_port;
+    if (update.add)
+    {
+        auto standalone_tunnel_neigh_it = standalone_tunnel_neighbors_.find(update.entry.ip_address);
+        if (!update.mac)
+        {
+            if (standalone_tunnel_neigh_it == standalone_tunnel_neighbors_.end())
+            {
+                createStandaloneTunnelRoute(update.entry.ip_address);
+            }
+            return;
+        }
+
+        if (standalone_tunnel_neigh_it != standalone_tunnel_neighbors_.end())
+        {
+            removeStandaloneTunnelRoute(update.entry.ip_address);
+        }
+
+        for (auto it = mux_cable_tb_.begin(); it != mux_cable_tb_.end(); it++)
+        {
+            MuxCable* ptr = it->second.get();
+            if (ptr->isIpInSubnet(update.entry.ip_address))
+            {
+                ptr->updateNeighbor(update.entry, update.add);
+                return;
+            }
+        }
+
+        // get the port by checking the neighbor update mac in FDB
+        if (!getMuxPort(update.mac, update.entry.alias, port))
+        {
+            return;
+        }
+
+        old_port = getNexthopMuxName(update.entry);
+        if (port.empty() || old_port == port)
+        {
+            addNexthop(update.entry, old_port);
+            return;
+        }
+
+        // no fdb update yet, omit the port
+        addNexthop(update.entry);
+    }
+    else 
+    {
+        auto it = mux_nexthop_tb_.find(update.entry);
+        if (it != mux_nexthop_tb_.end())
+        {
+            port = it->second;
+            removeNexthop(update.entry);
+        }
+    }
+
+    // remove from the old mux port
+    MuxCable* ptr;
+    if (!old_port.empty() && old_port != port && isMuxExists(old_port))
+    {
+        ptr = getMuxCable(old_port);
+        ptr->updateNeighbor(update.entry, false);
+        addNexthop(update.entry);
+    }
+
+    // add to the current mux port
+    if (!port.empty() && isMuxExists(port))
+    {
+        ptr = getMuxCable(port);
+        ptr->updateNeighbor(update.entry, update.add);
+    }
+}
+```
+
+### MuxCable::updateNeighbor
+* if `add`:
+    * register nexthop with port as current mux port in `MuxOrch`
+* if not `add`:
+    * unregister the nexthop in `MuxOrch` if the port stored is this mux port
+```cpp
+void MuxCable::updateNeighbor(NextHopKey nh, bool add)
+{
+    sai_object_id_t tnh = mux_orch_->getNextHopTunnelId(MUX_TUNNEL, peer_ip4_);
+
+    nbr_handler_->update(nh, tnh, add, state_);
+    if (add)
+    {
+        mux_orch_->addNexthop(nh, mux_name_);
+    }
+    else if (mux_name_ == mux_orch_->getNexthopMuxName(nh))
+    {
+        mux_orch_->removeNexthop(nh);
+    }
+}
+```
+### MuxNbrHandler
+```cpp
+class MuxNbrHandler
+{
+public:
+    MuxNbrHandler() = default;
+
+    bool enable(bool update_rt);
+    bool disable(sai_object_id_t);
+    void update(NextHopKey nh, sai_object_id_t, bool = true, MuxState = MuxState::MUX_STATE_INIT);
+
+    sai_object_id_t getNextHopId(const NextHopKey);
+
+private:
+    MuxNeighbor neighbors_;             // stores the mapping from the neighbor address and the nexthop id(tunnel id or vlan id)
+    string alias_;                      // stores the port alias
+};
+```
+
+#### MuxNbrHandler::update
+* if add:
+    * if mux state init
+        * add the new neighbor with nexthop id as NULL
+    * if mux state active
+        * add the new neighbor with nexthop id as the local vlan device
+        * `NeighOrch::enableNeighbor`
+    * if mux state standby
+        * add the new neighbor with nexthop id as the tunnel device
+        * `NeighOrch::disableNeighbor`
+        * `addTunnelRoute`
+* if remove:
+    * remove the neighbor
+    * if mux state standby
+        * `removeTunnelRoute` 
+
+#### MuxNbrHandler::enable
+* for every neighbor stored in `MuxNbrHandler::neighbors_`:
+    * `NeighOrch::enableNeighbor`
+    * change the nexthop id stored in `MuxNbrHandler::neighbors_` as the local vlan id
+    * invalid current tunnel nexthop and valid the vlan nexthop
+    * if `update_rt`: notify `TunnelMgrd` to remove the kernel tunnel route
+
+
+#### MuxNbrHandler::disable
+* for every neighbor stored in `MuxNbrHandler::neighbors_`:
+    * change the nexthop id stored in `MuxNbrHandler::neighbors_` as the tunnel id
+    * invalid current vlan nexthop and valid the tunnel nexthop
+    * `NeighOrch::disableNeighbor`
+    * notify `TunnelMgrd` to add the kernel tunnel route
+
