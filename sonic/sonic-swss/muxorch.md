@@ -30,6 +30,9 @@ class `MuxOrch` subscribes to two tables:
 * `CFG_PEER_SWITCH_TABLE_NAME`
     * used to initialize the tunnel to peer switch
 
+class `MuxOrch` receives updates from `FdbOrch` and `NeighOrch`:
+* `updateNeighbor`
+* `updateFdb`
 
 ### MuxOrch::addOperation
 * calls the handlers for subscribed table
@@ -190,3 +193,30 @@ void MuxCable::setState(string new_state)
 ## fdb handling
 
 ## neighbor handling
+
+### MuxOrch::updateNeighbor
+#### neighbor update struct
+```cpp
+typedef NextHopKey NeighborEntry;
+
+struct NextHopKey
+{
+    IpAddress           ip_address;     // neighbor IP address
+    string              alias;          // incoming interface alias
+    uint32_t            vni;            // Encap VNI overlay nexthop
+    MacAddress          mac_address;    // Overlay Nexthop MAC.
+    LabelStack          label_stack;    // MPLS label stack
+    uint32_t            weight;         // NH weight for NHGs
+    string              srv6_segment;   // SRV6 segment string
+    string              srv6_source;    // SRV6 source address
+    ...
+};
+
+struct NeighborUpdate
+{
+    NeighborEntry entry;
+    MacAddress mac;
+    bool add;
+};
+
+```
