@@ -48,7 +48,7 @@ $ cat /proc/sys/kernel/pid_max
 ![image](https://user-images.githubusercontent.com/35479537/189140071-f57600ab-397e-4dd5-9df7-702a1c69ca6e.png)
 
 
-* storing the kernel stack and thread info makes it easy to derive the current process from `esp` easily.
+* storing the kernel stack and thread info together makes it easy to derive the current process from `esp` easily.
 
 
 ### doubly linked lists
@@ -138,6 +138,20 @@ unsigned long hash_long(unsigned long val, unsigned int bits)
 * `task_struct` has a field `pids`, which is an array of four struct `pid` structures
 
 ![image](https://user-images.githubusercontent.com/35479537/192212692-a6eaa3e4-dc46-41bf-b7c9-0d9bb5ff7f96.png)
+
+* `pid_chain` stores the the next and previous process that shares the same hashed pid value
+* `pid_list` stores next and previous process that shares the same `tgid`, `PGID` or `SID`
+
+```c
+struct pid
+{
+	/* Try to keep pid_chain in the same cacheline as nr for find_pid */
+	int nr;
+	struct hlist_node pid_chain;
+	/* list of pids with the same nr, only one of them is in the hash */
+	struct list_head pid_list;
+};
+```
 
 ## how processes are organized
 * runqueue lists group all processes in `TASK_RUNNING` state.
@@ -243,7 +257,7 @@ void sleep_on(wait_queue_head_t *wq)
 	* `wake_up_locked`
 * **NOTE**:
 	* `wake_up`:
-		* awaken both `TASK_INTERRUPTABLE` and `TASK_UNINTERRUPTABLE
+		* awaken both `TASK_INTERRUPTABLE` and `TASK_UNINTERRUPTABLE`
 		* awaken all nonexclusive and one exclusive
 		* check if any of the woken processes is higher than that of the process currently running in the system invoke `schedule()`
 	* `_interruptable`: means awaken only processes in `TASK_INTERRUPTABLE`
