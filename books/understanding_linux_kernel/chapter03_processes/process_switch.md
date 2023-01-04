@@ -90,7 +90,7 @@ struct tss_struct {
     * `next`: the descriptor address of the new process
     * `last`: the descriptor address of the process being replaced
 * `prev`, `next`, `last` are all local variables stored in the kernel mode stack of the process being replaced
-* `last` is used to facilicate the new process to find the process being replaced
+* **`last` is used to facilicate the new process to find the process being replaced**
     * before the process switching, `switch_to` saves `prev` into `EAX`
     * after the process switching, `switch_to` copies `EAX` into `last`
     * as the CPU register doesn't change across process switch
@@ -99,15 +99,15 @@ struct tss_struct {
 
 ```assembly
 switch_to:
-        movl prev, %eax
-        movl next, %edx
-        pushfl
-        pushl %ebp
-        movl %esp, 484(%eax)
-        movl 484(%edx), %esp
-        movl $1f, 480(%eax)
-        pushl 480(%eax)
-        jmp __switch_to
+        movl prev, %eax			# save prev into eax
+        movl next, %edx			# save next into edx
+        pushfl				# saves the content of eflags onto the prev kernel mode stack
+        pushl %ebp			# saves ebp onto the prev kernel mode stack
+        movl %esp, 484(%eax)		# saves the content of esp in prev->thread.esp
+        movl 484(%edx), %esp		# loads next->thread.esp into esp
+        movl $1f, 480(%eax)		# saves the address labeled 1 in prev->thread.eip
+        pushl 480(%eax)			# push next->thread.eip onto the kernel mode stack of next
+        jmp __switch_to			# jumps to __switch_to()
         movl %eax, last
 
 1:
