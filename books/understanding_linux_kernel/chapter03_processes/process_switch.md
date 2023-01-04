@@ -106,7 +106,7 @@ switch_to:
         movl %esp, 484(%eax)		# saves the content of esp in prev->thread.esp
         movl 484(%edx), %esp		# loads next->thread.esp into esp
         movl $1f, 480(%eax)		# saves the address labeled 1 in prev->thread.eip
-        pushl 480(%eax)			# push next->thread.eip onto the kernel mode stack of next
+        pushl 480(%edx)			# push next->thread.eip onto the kernel mode stack of next
         jmp __switch_to			# jumps to __switch_to()
         movl %eax, last
 
@@ -228,6 +228,16 @@ struct task_struct *__switch_to(struct task_struct *prev_p, struct task_struct *
 	return prev_p;
 }
 ```
+* `__switch_to()` C function ends by the means of the statement
+```c
+	return prev_p;
+```
+* the corresponding assembly language instructions:
+```c
+	movl %edi, %eax
+	ret
+```
+* as `switch_to` pushes `next->thread.eip` onto the kernel stack, when `__switch_to` returns, it will execute `next->thread.eip`, which is the address of the instruction labeled as `1`
 
 ## references
 * https://pdos.csail.mit.edu/6.828/2005/readings/i386/s07_02.htm
