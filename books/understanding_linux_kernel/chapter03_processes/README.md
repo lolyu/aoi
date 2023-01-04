@@ -67,6 +67,62 @@ struct tss_struct {
 } __attribute__((packed)) ____cacheline_aligned;
 ```
 
+### x86 registers
+* registers:
+	* general registers
+		* `EAX`
+			* accumulator register
+			* used for I/O port access, arithmetic, interrupt calls
+		* `EBX`
+			* base register
+			* used as a base pointer for memory access
+		* `ECX`
+			* counter register
+			* used as a loop counter and for shifts
+		* `EDX`
+			* data register
+			* used for I/O port access, arithmetic, interrupt calls
+	* segment registers: only available in 16 bits
+		* `CS`
+			* code segment
+		* `DS`
+			* data segment
+		* `ES`
+			* extra segment registers available for far pointer addressing like video memory and such
+		* `FS`, `GS`
+			* general purpose segment registers
+		* `SS`
+			* stack segment
+	* index and pointers
+		* `EDI`: destination index register
+		* `ESI`: source index register
+		* `EBP`: stack base pointer register, holds the base address of the stack
+		* `ESP`: stack pointer register, holds the top address of the stack
+		* `EIP`: index pointer, holds the offset of the next instruction
+	* indicator
+
+### I/O ports
+```
+$ cat /proc/ioports
+0000-0000 : dma1
+0000-0000 : pic1
+0000-0000 : timer0
+0000-0000 : timer1
+0000-0000 : keyboard
+0000-0000 : keyboard
+0000-0000 : rtc0
+0000-0000 : dma page reg
+0000-0000 : pic2
+0000-0000 : dma2
+0000-0000 : fpu
+0000-0000 : serial
+0000-0000 : serial
+0000-0000 : ACPI PM1a_EVT_BLK
+0000-0000 : ACPI PM1a_CNT_BLK
+0000-0000 : ACPI PM_TMR
+0000-0000 : ACPI GPE0_BLK
+```
 ## references
 * https://tupelo-shen.github.io/2020/02/29/Linux%E5%86%85%E6%A0%B810-list_head%E5%92%8Chlist_head%E7%9A%84%E7%90%86%E8%A7%A3/
 * https://www.eecg.utoronto.ca/~amza/www.mindsec.com/files/x86regs.html
+* https://wiki.osdev.org/Segmentation
