@@ -54,6 +54,8 @@ sys 0.04
     * `user`: the amount of CPU time spent on the task outside kernel functions
     * `sys`: the time spent in kernel-level functions
 
+* `real` - (`user` + `sys`) is the amount of time spent waiting for I/O 
+
 ### verbose output explained
 ```
 $ /usr/bin/time -v python3 julia_set.py
@@ -152,8 +154,155 @@ Function                                                                        
 {method 'sort' of 'list' objects}                                                          ->      13    0.000    0.000  /usr/lib/python3.6/enum.py:868(<lambda>)
 ```
 
+## line_profiler to get per-line time usage
+* how to improve?
+    1. start a hypothesis that was easy to test
+    2. change the code so that only the hypothesis could be tested
+    3. gather the evidence to support the conclusion
 
+### demo profiling
+* the original code
+```python
+def calculate_z_serial_purepython(maxiter, zs, cs):
+    """Calculate output list using Julia update rule"""
+    output = [0] * len(zs)
+    for i in range(len(zs)):
+        n = 0
+        z = zs[i]
+        c = cs[i]
+        while abs(z) < 2 and n < maxiter:
+            z = z * z + c
+            n += 1
+        output[i] = n
+    return output
+```
+* profiling output with `line_profiler`
+```
+$ kernprof -l -v julia_set.py
+```
+```
+Total time: 40.5077 s
+File: julia_set.py
+Function: calculate_z_serial_purepython at line 67
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    67                                           @profile
+    68                                           def calculate_z_serial_purepython(maxiter, zs, cs):
+    69                                               """Calculate output list using Julia update rule"""
+    70         1       1108.0   1108.0      0.0      output = [0] * len(zs)
+    71   1000001     313205.0      0.3      0.8      for i in range(len(zs)):
+    72   1000000     295904.0      0.3      0.7          n = 0
+    73   1000000     338161.0      0.3      0.8          z = zs[i]
+    74   1000000     306916.0      0.3      0.8          c = cs[i]
+    75  34219980   15143836.0      0.4     37.4          while abs(z) < 2 and n < maxiter:
+    76  33219980   12825233.0      0.4     31.7              z = z * z + c
+    77  33219980   10934614.0      0.3     27.0              n += 1
+    78   1000000     348714.0      0.3      0.9          output[i] = n
+    79         1          1.0      1.0      0.0      return output
+```
+* updated version
+```python
+@profile
+def calculate_z_serial_purepython(maxiter, zs, cs):
+    """Calculate output list using Julia update rule"""
+    output = [0] * len(zs)
+    for i in range(len(zs)):
+        n = 0
+        z = zs[i]
+        c = cs[i]
+        while n < maxiter and abs(z) < 2:
+            z = z * z + c
+            n += 1
+        output[i] = n
+    return output
+```
+* profile output
+```
+Total time: 40.2861 s
+File: julia_set.py
+Function: calculate_z_serial_purepython at line 67
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    67                                           @profile
+    68                                           def calculate_z_serial_purepython(maxiter, zs, cs):
+    69                                               """Calculate output list using Julia update rule"""
+    70         1       1562.0   1562.0      0.0      output = [0] * len(zs)
+    71   1000001     309564.0      0.3      0.8      for i in range(len(zs)):
+    72   1000000     295289.0      0.3      0.7          n = 0
+    73   1000000     334389.0      0.3      0.8          z = zs[i]
+    74   1000000     305345.0      0.3      0.8          c = cs[i]
+    75  34219980   15341014.0      0.4     38.1          while n < maxiter and abs(z) < 2:
+    76  33219980   12500265.0      0.4     31.0              z = z * z + c
+    77  33219980   10873508.0      0.3     27.0              n += 1
+    78                                           
+    79   1000000     325133.0      0.3      0.8          output[i] = n
+    80         1          1.0      1.0      0.0      return output
+```
+* conclusion: No performance difference to change the order of the logic result.
+* In python2.\*, there might be some performance speedup, but in python3.\*, no much difference
+
+
+## memory_profiler to get per-line memory usage
+* `memory_profiler` runs much slower than `line_profiler`
+* **NOTE**: to use `memory_profiler` or `line_profiler` to get per-function usage, please use `@profile` decorator over target functions.
+
+![image](https://user-images.githubusercontent.com/35479537/216768321-2134c555-0a98-4f4e-abf2-0fe9b0d8f096.png)
+* the yellow lines mark the time range that `calc_pure_python` function runs
+* the blue lines mark the time range that `calc_z_serial_purepython` function runs
+* those markers help to understand the memory change within function calls
+```
+$ mprof run julia_set.py                
+mprof: Sampling memory every 0.1s
+running new process
+running as a Python program...
+Length of x: 1000
+Total elements: 1000000
+calculate_z_serial_purepython took 5.514853477478027 seconds
+$ mprof plot --output output.jpg
+Using last profile data.
+```
+
+### demo profiling
+* code
+```python
+import time
+
+
+@profile
+def f(num, count):
+    a = [num] * count
+    time.sleep(2)
+    g(a)
+
+
+@profile
+def g(a):
+    time.sleep(4)
+    return [_+i for i,_ in enumerate(a)]
+
+
+if __name__ == "__main__":
+    f(-2, 10000)
+
+```
+```
+$ mprof run demo.py
+$ mprof plot --output output.jpg
+```
+* output
+
+![image](https://user-images.githubusercontent.com/35479537/216769333-04dcbf22-5436-4080-9fcd-21ff2b364a73.png)
+
+### set breakpoints depending on the memory used
+```
+$ python -m memory_profiler --pdb-mmem=100 my_script.py
+```
+* `my_script.py` will step into the pdb debugger as soon as the code uses more than 100MB in the decorated function
 
 ## references
 * https://docs.python.org/3.7/library/timeit.html
 * https://docs.python.org/3/library/profile.html
+* https://github.com/pythonprofilers/memory_profiler
+* https://github.com/pyutils/line_profiler
