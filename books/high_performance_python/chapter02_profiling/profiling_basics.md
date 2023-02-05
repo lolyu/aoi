@@ -301,6 +301,87 @@ $ python -m memory_profiler --pdb-mmem=100 my_script.py
 ```
 * `my_script.py` will step into the pdb debugger as soon as the code uses more than 100MB in the decorated function
 
+## bytecode
+```
+>>> dis.dis(calculate_z_serial_purepython)
+ 74           0 LOAD_CONST               1 (0)
+              2 BUILD_LIST               1
+              4 LOAD_GLOBAL              0 (len)
+              6 LOAD_FAST                1 (zs)
+              8 CALL_FUNCTION            1
+             10 BINARY_MULTIPLY
+             12 STORE_FAST               3 (output)
+
+ 75          14 SETUP_LOOP              94 (to 110)
+             16 LOAD_GLOBAL              1 (range)
+             18 LOAD_GLOBAL              0 (len)
+             20 LOAD_FAST                1 (zs)
+             22 CALL_FUNCTION            1
+             24 CALL_FUNCTION            1
+             26 GET_ITER
+        >>   28 FOR_ITER                78 (to 108)
+             30 STORE_FAST               4 (i)
+
+ 76          32 LOAD_CONST               1 (0)
+             34 STORE_FAST               5 (n)
+
+ 77          36 LOAD_FAST                1 (zs)
+             38 LOAD_FAST                4 (i)
+             40 BINARY_SUBSCR
+             42 STORE_FAST               6 (z)
+
+ 78          44 LOAD_FAST                2 (cs)
+             46 LOAD_FAST                4 (i)
+             48 BINARY_SUBSCR
+             50 STORE_FAST               7 (c)
+
+ 79          52 SETUP_LOOP              44 (to 98)
+        >>   54 LOAD_FAST                5 (n)
+             56 LOAD_FAST                0 (maxiter)
+             58 COMPARE_OP               0 (<)
+             60 POP_JUMP_IF_FALSE       96
+             62 LOAD_GLOBAL              2 (abs)
+             64 LOAD_FAST                6 (z)
+             66 CALL_FUNCTION            1
+             68 LOAD_CONST               2 (2)
+             70 COMPARE_OP               0 (<)
+             72 POP_JUMP_IF_FALSE       96
+
+ 80          74 LOAD_FAST                6 (z)
+             76 LOAD_FAST                6 (z)
+             78 BINARY_MULTIPLY
+             80 LOAD_FAST                7 (c)
+             82 BINARY_ADD
+             84 STORE_FAST               6 (z)
+
+ 81          86 LOAD_FAST                5 (n)
+             88 LOAD_CONST               3 (1)
+             90 INPLACE_ADD
+             92 STORE_FAST               5 (n)
+             94 JUMP_ABSOLUTE           54
+        >>   96 POP_BLOCK
+
+ 83     >>   98 LOAD_FAST                5 (n)
+            100 LOAD_FAST                3 (output)
+            102 LOAD_FAST                4 (i)
+            104 STORE_SUBSCR
+            106 JUMP_ABSOLUTE           28
+        >>  108 POP_BLOCK
+
+ 84     >>  110 LOAD_FAST                3 (output)
+            112 RETURN_VALUE
+```
+* data explaned:
+    * first column: line number
+    * second column:
+        * `>>`: jump points
+    * thrid column: operation address
+    * fourth column: operation name
+    * fifth column: operation parameter
+    * sixth column: annotation
+* more lines of bytecode will execute much more slowly than fewer equivalent lines of bytecode that use built-in functions
+
+
 ## references
 * https://docs.python.org/3.7/library/timeit.html
 * https://docs.python.org/3/library/profile.html
