@@ -60,12 +60,27 @@ $ cat /proc/ioports
 
 ## memory
 ![image](https://user-images.githubusercontent.com/35479537/218305460-3aa46b5b-3440-4866-a3b7-78abfb1e0e53.png)
-
+* for 8088/8086 CPU, it has 20-bit address, ranges from 0x00000 to 0xfffff
+* for 32-bit address, it ranges from 0x00000000 ~ 0xffffffff
 * in order to be compatible with the original PC in software, the allocation of physical memory below the system 1MB still remains basically the same as the original PC, but the BIOS of the original system ROM has always been the highest in the memory that the CPU can address.
 * all memory except 0xA0000 ~ 0xFFFFF and 0xFFFE0000 ~ 0xFFFFFFFF can be used as system memory
 * 0xA0000 ~ 0xFFFFF and 0xFFFE0000 ~ 0xFFFFFFFF are used for I/O devices and BIOS programs
 
 ## BIOS
+* BIOS(basic input/output service) is mainly used to execute the self-check of various parts of the system when the computer is booting up, and various configurations needed by the OS are set:
+    * interrupt vector table
+    * hard disk parameter table
+* Linux uses the BIOS to provide system parameters during initialization only.
+* for 8088/8086 computers, registers are 16 bits each, and the memory to address, and the processor has a 20-bit address bus, which means it supports up to 2 ^ 20 bytes memory (1M)
+* in real mode, the physical address is calculated as `CS << 16 + IP`
+* when the computer is powered on:
+    * CPU sets the CS register to 0xF000, and the EIP is set to 0xFFF0
+        * in real-address mode, the base address is normally formed by shifting the 16-bit segment selector value 4 bits to the left to produce a 20-bit base address. However, during a hardware reset the segment selector in the CS register is loaded with 0xf000 and the base address is loaded with 0xffff0000. The processor uses this special base address until CS changes.
+
+![image](https://user-images.githubusercontent.com/35479537/218474185-df204f7a-e2da-462e-939e-347faaae59d9.png)
+
 
 ## references
 * https://linux-kernel-labs.github.io/refs/pull/165/merge/labs/interrupts.html
+* https://0xax.gitbook.io/linux-insides/summary/booting/linux-bootstrap-1
+* https://en.wikipedia.org/wiki/X86_memory_segmentation
