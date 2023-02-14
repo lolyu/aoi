@@ -1,4 +1,4 @@
-55555555# computer architecture
+# computer architecture
 
 ![image](https://user-images.githubusercontent.com/35479537/218302520-a7e353ce-5917-4b9d-bd55-a2ed02c29ac5.png)
 
@@ -79,6 +79,11 @@ $ cat /proc/ioports
 
 ![image](https://user-images.githubusercontent.com/35479537/218474185-df204f7a-e2da-462e-939e-347faaae59d9.png)
 
+## interrupt controller
+![image](https://user-images.githubusercontent.com/35479537/218745128-0d40a283-c585-42e1-99a3-1933c970067f.png)
+
+## DMA controller
+* with DMA controller, data transfer between peripherals and memory can be performed without CPU control
 
 ## references
 * https://linux-kernel-labs.github.io/refs/pull/165/merge/labs/interrupts.html
