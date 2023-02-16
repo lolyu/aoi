@@ -31,7 +31,7 @@ def index_sequence(key, mask=0b111, PERTURB_SHIFT=5):
     3. looks inside the `__builtin__`
 * the search in the local scope is the only part of the the variable lookup that doesn't require a dictionary lookup
 
-```
+```python
 import time
 
 from time import perf_counter
