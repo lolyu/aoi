@@ -15,7 +15,7 @@ romimage: file=$BXSHARE\BIOS-bochs-latest, address=0xef0000
 ```
 * update `bochsrc.bxrc` to be:
 ```
-romimage: file=$BXSHARE\BIOS-bochs-latest, address=0xee0000
+romimage: file=$BXSHARE\BIOS-bochs-latest, address=0xe0000
 ```
 ![image](https://user-images.githubusercontent.com/35479537/221070960-f44a1e0c-9c4f-49ee-bd88-1d57d66059ba.png)
 
