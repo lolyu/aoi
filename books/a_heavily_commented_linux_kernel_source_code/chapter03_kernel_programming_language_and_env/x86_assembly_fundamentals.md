@@ -20,5 +20,13 @@
     * register: starting with `%s`
     * memory
 
+* `$` dollar sign before the label name instructs the assembler to use the memory address, not the data value located at the address.
+
+* jump instruction is used to move the execution point to another location
+    * unconditional jump
+        * can be both direct jump(jump target is a label) and indirect jump(jump target is taken from a register or memory location)
+    * conditional jump
+        * direct jump only
+
 ## references
 * https://users.pfw.edu/nguyent/teaching/spring20/cs271/lecture/Assembly-Fundamentals.pdf
