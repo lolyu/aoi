@@ -19,6 +19,17 @@
 #             which enables stack walking in a debugger and viewing 
 #             other frames local variables to work
 ```
+```
+# With the GNU assembler, there are two ways to load the ESI and EDI values. 
+# The first way is to use indirect addressing
+
+movl $output, %edi
+
+# Another method of specifying the memory locations is the LEA instruction. 
+# The LEA instruction loads the effective address of an object.
+
+leal output, %edi
+```
 
 # references
 * https://flint.cs.yale.edu/cs421/papers/x86-asm/asm.html
