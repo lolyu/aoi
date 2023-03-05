@@ -96,3 +96,51 @@ int main()
     return 0;
 }
 ```
+
+## statement expression
+* format
+```c
+({...})
+```
+* statement expression is often used in MACRO definition
+```c
+#define container_of(ptr, type, member) ({               \
+    const typeof(((type *)nullptr)->member) *mptr = ptr; \
+    (type *)((char *)mptr - offsetof(type, member));     \
+})
+```
+
+## register variables
+* there are two types of register variables:
+    * global register variables
+        * reserve in dedicated registers throughout the program operation
+    * local register variables
+        * don't reserve the dedicated registers throughout the program operation
+* `volatile` keyword for `asm`:
+    * if you don't want your asm be optimized by gcc, you should add volatile keyword to `asm`
+* specify a register to local register variable:
+```
+register int res __asm__("ax");
+```
+
+## inline function
+* `inline function` is used to integrate the code of the function into the code that calls the function.
+    * saves the time of function prologue and epilogue execution time
+    * inline functions are as fast as macros
+* GCC does not inline any functions when not optimizing with option `-finline-functions`
+* the inline function replacement is enabled with optimization `-O`
+* combined with other keywords:
+    * `inline`
+        * if an `inline` function is not static, then the compiler assume there may be calls from other resource files
+        * since a global symbol can be defined only once in any program, the function must not be defined in the other source files, so the calls therein cannot be integrated
+        *  a `non-static` inline function is always compiled on its own in the usual fashion
+    * `static inline`
+        * intenal linkage
+        * GCC does not output assembler code for the `static inline` function unless using option `-fkeep-inline-functions`
+    * `extern inline`
+        * external linkage
+        * the `extern inline` is used only for inlinining.
+        * This combination of inline and extern has almost the effect of a macro. The way to use it is to put a function definition in a header file with these keywords, and put another copy of the definition (lacking inline and extern) in a library file. The definition in the header file causes most calls to the function to be inlined. If any uses of the function remain, they refer to the single copy in the library.
+## references
+* https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
+* https://gcc.gnu.org/onlinedocs/gcc/Inline.html
