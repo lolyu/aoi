@@ -14,3 +14,7 @@
     * the return address of function `A` is pushed onto the stack
     * `ebp` is pushed onto the stack(`A`'s ebp value)
     * the stack frame of `B` starts from the subsequent stack section
+
+
+## references
+* https://thecandcppclub.com/deepeshmenon/chapter-4-the-stacks-in-c/227/
