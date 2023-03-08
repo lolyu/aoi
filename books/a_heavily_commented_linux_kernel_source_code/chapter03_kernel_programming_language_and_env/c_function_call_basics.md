@@ -24,6 +24,16 @@
     * `esp` points to the stack top
     * the size of data moved in/out during stack operations depends on the processor's word length(x86, it is 32-bits)
 * `ebp` indicates to the origin of current stack frame
+* register conventions:
+    * `eax`, `edx`, and `ecx`: must be save onto the stack by the caller to avoid modification by callee function
+    * `ebx`, `esi`, and `edi`: if any of them is modified by the callee, it should be saved onto the stack by the callee and restored when callee function returns.
+
+### main() as a function
+* `main` is also a function, called by the stub program
+* more on the stub: `crt(c run-time)`:
+    * https://dev.gentoo.org/~vapier/crt.txt
+    * https://stackoverflow.com/questions/1271248/c-when-and-how-are-c-global-static-constructors-called
+    * https://stackoverflow.com/questions/3047518/gcc-crtbegin-crtend
 
 ### function prologue and epilogue
 ```asm
@@ -71,6 +81,15 @@ $12 = (void (*)()) 0x565561af <f+34>
 (gdb) print $ebp
 $13 = (void *) 0xffffd170
 ```
+
+## call c function from assembly
+* to call a c function from assembly:
+    * reversely push function parameters onto stack
+    * use `CALL` to execute target function
+    * target function executes
+    * cleanup target function parameters on the stack
+
+## call assembly from c function
 
 ## references
 * https://thecandcppclub.com/deepeshmenon/chapter-4-the-stacks-in-c/227/
