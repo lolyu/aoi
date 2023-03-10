@@ -38,3 +38,4 @@ leal output, %edi
 * https://gist.github.com/mishurov/6bcf04df329973c15044
 * https://en.wikipedia.org/wiki/FLAGS_register
 * https://www.felixcloutier.com/x86/
+* https://dmalcolm.fedorapeople.org/gcc/2015-08-31/rst-experiment/how-to-use-inline-assembly-language-in-c-code.html
