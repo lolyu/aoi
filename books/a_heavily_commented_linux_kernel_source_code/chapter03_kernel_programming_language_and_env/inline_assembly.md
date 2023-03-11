@@ -49,6 +49,7 @@ asm [volatile] goto ( ``AssemblerTemplate``
         * `r` for register
         * `m` for memory
 * `cvariablename`: specifies a C lvalue expression to hold the output
+* When the compiler selects the registers to use to represent the output operands, it does not use any of the clobbered registers
 #### difference between `r` and `m`
 ```c
     uint32_t c = 1;
@@ -101,9 +102,21 @@ asm [volatile] goto ( ``AssemblerTemplate``
     * reference the name in the assembly template by `%[Value]`
 * `constraint`:
     * input operands constraints should not begin with either `=` or `+`
+    * `"0"` means the input operand will use the same set of registers as the first output operand
+    * `"k"` means the input operand must be in the same place as the `k`th output operand
 
 * `cvariablename`: specifies a C lvalue expression to hold the output
+* When the compiler selects the registers to use to represent the output operands, it does not use any of the clobbered registers
+* The compiler assumes that on exit from the asm statement these operands contain the same values as they had before executing the statement.
 
+### clobbers
+* While the compiler is aware of changes to entries listed in the output operands, the inline asm code may modify more than just the outputs.
+* In order to inform the compiler of these changes, list them in the clobber list.
+* When the compiler selects which registers to use to represent input and output operands, it does not use any of the clobbered registers. As a result, clobbered registers are available for any use in the assembler code.
+
+* special clobbers:
+	* `"cc"`
+	* `"memory"`
 ## references
 * https://stackoverflow.com/questions/15819794/when-to-use-earlyclobber-constraint-in-extended-gcc-inline-assembly
 * https://dmalcolm.fedorapeople.org/gcc/2015-08-31/rst-experiment/how-to-use-inline-assembly-language-in-c-code.html
