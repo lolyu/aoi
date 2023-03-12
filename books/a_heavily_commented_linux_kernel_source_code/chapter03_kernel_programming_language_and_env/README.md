@@ -1,11 +1,14 @@
-##
+## contents
 * [boch](https://github.com/lolyu/aoi/blob/master/books/a_heavily_commented_linux_kernel_source_code/chapter03_kernel_programming_language_and_env/bochs.md)
 * [c program](https://github.com/lolyu/aoi/blob/master/books/a_heavily_commented_linux_kernel_source_code/chapter03_kernel_programming_language_and_env/c_program.md)
 * [c function call basics](https://github.com/lolyu/aoi/blob/master/books/a_heavily_commented_linux_kernel_source_code/chapter03_kernel_programming_language_and_env/c_function_call_basics.md)
 * [inline assembly](https://github.com/lolyu/aoi/blob/master/books/a_heavily_commented_linux_kernel_source_code/chapter03_kernel_programming_language_and_env/inline_assembly.md)
 * [linux 0.12 object file format](https://github.com/lolyu/aoi/blob/master/books/a_heavily_commented_linux_kernel_source_code/chapter03_kernel_programming_language_and_env/linux_object_file_format.md)
-## assembly basics
 * [x86 assembly fundamentals](https://github.com/lolyu/aoi/blob/master/books/a_heavily_commented_linux_kernel_source_code/chapter03_kernel_programming_language_and_env/x86_assembly_fundamentals.md)
+* [makefile walkthrough](https://github.com/lolyu/aoi/blob/master/books/a_heavily_commented_linux_kernel_source_code/chapter03_kernel_programming_language_and_env/makefile_walkthrough.md)
+
+## assembly basics
+
 ```
 # - Registers
 # |__ General purpose (Eight 32-bit registers used for storing working data)
