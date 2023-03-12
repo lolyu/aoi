@@ -75,5 +75,55 @@ struct relocation_info
     * when the code segment is relocated to a different base address, the relocation item is used to indicate where it needs to be modified.
     * when there is a reference to an undefined symbol in the module file, the linker can use the corresponding relocation item to correct the value of the symbol when the undefined symbol is finally defined
 
+### symbol and string section
+```c
+struct nlist
+{
+    union
+    {
+        char *n_name;         // String pointer,
+        struct nlist *n_next; // Or a pointer to another symbolic item structure,
+        long n_strx;          // Or the byte offset value of the symbol name in the table.
+    } n_un;
+    unsigned char n_type;  // This byte is divided into 3 fields. see a.out.h file.
+    char n_other;          // Usually not used.
+    short n_desc;          //
+    unsigned long n_value; // Symbol’s value.
+};
+```
+* `n_type`
+   * the last bit == 1: it is a global symbol
+   * 
+
+## inspect object file format
+* `objdump -h`: display the contents of the section headers
+* `hexdump`: display the file content in hex
+* `strip`: remove sections from the object file
+
+![image](https://user-images.githubusercontent.com/35479537/224521358-46497c23-bcac-455d-8862-1ccd3c379190.png)
+
+## linking process
+![image](https://user-images.githubusercontent.com/35479537/224521540-c51f64d2-5e49-404f-907d-d7d0d11126fa.png)
+
+## linker predefined variables
+```c
+#include <stdio.h>
+
+extern int end, etext, edata;
+extern int _end, _etext, _edata;
+
+int main()
+{
+
+    printf("&etext=%p, &edata=%p, &end=%p\n", &etext, &edata, &end);
+    printf("&_etext=%p, &_edata=%p, &_end=%p\n", &_etext, &_edata, &_end);
+
+    return 0;
+}
+```
+
 ## references
 * https://wiki.osdev.org/A.out
+* https://stackoverflow.com/questions/1765969/where-are-the-symbols-etext-edata-and-end-defined
+* https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
+* https://stackoverflow.com/questions/54960367/why-text-section-is-not-near-by-entry-point-address
