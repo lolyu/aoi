@@ -21,7 +21,7 @@
 * `PTE`: page table entry, used to store the `PFN` corresponding to the `VPN`, it is 4 bytes(32 bits), 20 bits are used to store the `PFN`, 12 bits are used to store page attributes
     * so the page table needs (2 ^ 20) * 4 = 2 ^ 22 bytes = 4MB physical memory
 
-### pabe table size issue
+### page table size issue
 * with page table of 4MB size, not all of the pages are allocated and used(sparse page table)
 
 ### two-level page table
