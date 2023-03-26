@@ -76,5 +76,54 @@
 * each segment register has a "visible" part and a "hidden" part (the hidden part is also called " Descriptor Buffer" or "Shadow Register"). When a segment selector is loaded into the visible portion of a segment register, the processor also loads the segment address, segment length, and access control information in the segment descriptor pointed to by the segment selector to the hidden portion of the segment register. 
 
 ## segment descriptor
+![image](https://user-images.githubusercontent.com/35479537/227751465-ef7d07d6-4a68-4ca4-b206-bf92b878ef52.png)
+* fields:
+    * limit
+        * the segment size is always `(limit + 1) * granularity`
+    * base
+        * base address is always aligned at 16 bytes for better performance
+    * type field(`TYPE`): for data segment, the type field is interpreted as `E`, `W`, `A`; for code segment, the type field is interpreted as `C`, `R`, `A`.
+        * conforming(`C`)
+            * code in this segment may be called from less-privileged levels
+        * expand-down(`E`)
+            * If clear, the segment expands from base address up to base+limit. If set, it expands from maximum offset down to limit, a behavior usually used for stacks.
+        * readable(`R`)
+            * If clear, the segment may be executed but not read from.
+        * writable(`W`)
+            * If clear, the data segment may be read but not written to.
+        * accessed(`A`)
+            * This bit is set to 1 by hardware when the segment is accessed, and cleared by software.
+    * descriptor type flag(`S`)
+        * `S == 0`: internal system segment descriptor: `LDT`, `LSS` and gates
+        * `S == 1`: code and data segment descriptor
+    * descriptor privilege level(`DPL`)
+    * segment present(`P`)
+        * `P == 1`: segment present in memory
+        * `P == 0`: segment not present in memory
+    * `D/B`
+        * `D`: default operand size, if clear, 16-bit code segment, if set, 32-bit code segment
+        * `B`: If set, the maximum offset size for a data segment is increased to 32-bit 0xffffffff. Otherwise it's the 16-bit max 0x0000ffff. Essentially the same meaning as "D".
+    * granularity(`G`)
+        * if clear, offset is of bytes
+        * if set, offset is of 4KB
+    * available(`AVL`)
+
+![image](https://user-images.githubusercontent.com/35479537/227752559-d84e72aa-4be6-4e85-ba48-77dd4c643d59.png)
+
+![image](https://user-images.githubusercontent.com/35479537/227752566-eba15776-6d92-4410-8cdc-4efc9a31e150.png)
+
+### segment descriptor types
+* when the descriptor type flag(`S`) is cleared in a reset state(`0`), the descriptor is a system descriptor:
+    * local descriptor table segment descriptor
+    * task-state segment descriptor
+    * call-gate descriptor
+    * interrupt-gate descriptor
+    * trap-gate descriptor
+    * task-gate descriptor
+
+
+![image](https://user-images.githubusercontent.com/35479537/227753271-254bed60-a1f9-4d03-943c-33c666c8f02e.png)
+
 
 ## reference
+* https://en.wikipedia.org/wiki/Segment_descriptor
