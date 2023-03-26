@@ -37,6 +37,16 @@
 ![image](https://user-images.githubusercontent.com/35479537/227756318-f14354fd-b38c-40ba-bf61-e1f6d03ad445.png)
 
 
+### PTE
+![image](https://user-images.githubusercontent.com/35479537/227757895-0ee2e778-2f72-4c80-a8c1-adff1bf82195.png)
+
+fields:
+    * `P`: present flag
+    * `R/W`: 1 for r/w/e, 0 for r/e, superuser ignore this flag
+    * `U/S`: user/superuser
+    * `A`: accessed
+    * `D`: dirty, dirty flag of `PTE`s inside page table is set when the processor performs a write operation 
+    * `AVL`: available
 
 
 ## references
