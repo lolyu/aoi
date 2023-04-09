@@ -127,6 +127,9 @@ switch occurs
     4. loads the `SS` and `ESP` saved on top of the stack into `SS` and `ESP` registers to switch back to the caller's stack
     5. check the contents of segment registers `DS`, `ES`, `FS`, and `GS`, If there is a segment pointing to a DPL that is smaller than the new CPL (except for the consistent code segment), then the CPU loads the segment register with the NULL selector.
 
+## page protection
+* the read/write flags `R/W` and the user/supervisor flag `U/S` in the page directory and page table entries provide page protection
+* privilege levels 0, 1, and 2 are classified as superuser level, level 3 is classified as a normal user level
 
 
 ## references
