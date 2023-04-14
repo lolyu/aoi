@@ -1,4 +1,10 @@
 # netlink
+
+* summary:
+    * `NetLink` represents a selectable
+    * `NetMsg` provides APIs as callback for regsitered netlink messages
+    * `NetDispatcher`: a singleton class to call the callback registered to the received netlink message
+
 * class `NetLink`: selectable netlink socket, provide same interface to be compatible with swss select architecture
     * `registerGroup`
         * register with a specific protocol group
