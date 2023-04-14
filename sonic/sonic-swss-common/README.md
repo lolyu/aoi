@@ -34,4 +34,7 @@
         * [`ConsumerStateTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/consumerstatetable_demo.cpp)
         * [`ProducerTable` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/producertable_demo.cpp)
         * [`NotificationProducer` demo](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/codes/notificationproducer_demo.cpp)
-         
+
+* netlink
+    * notes:
+        * [`netlink`](https://github.com/lolyu/aoi/blob/master/sonic/sonic-swss-common/netlink.md)
