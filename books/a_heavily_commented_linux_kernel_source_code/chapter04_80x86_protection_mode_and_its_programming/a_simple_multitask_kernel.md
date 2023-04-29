@@ -45,7 +45,7 @@ init_stack:                          # Will be used as user stack for task0.
 * `LSS` loads `SS:r32` with far pointer from memory.
 * so `ss` will have value 0x10, and `esp` will have value `init_stack`
 
-### setup idt
+### setup_idt
 ![image](https://user-images.githubusercontent.com/35479537/235299109-ae1a4006-e50a-4c58-a6c6-c53d675bc26a.png)
 * `setup_idt`:
 	* use `eax` and `edx` to store gate descriptor 0-3 bytes and 4-7 bytes, and the gate descriptor points to `ignore_int`
@@ -76,7 +76,33 @@ lidt_opcode:
 
 ...
 
-idt:	.fill 256,8,0		# idt is uninitialized, 256 gate descriptors, 8 bytes each, 2KB total
+idt:	.fill 256,8,0				# idt is uninitialized, 256 gate descriptors, 8 bytes each, 2KB total
+```
+
+### setup_gdt
+```assembly
+setup_gdt:
+	lgdt lgdt_opcode
+	ret
+
+...
+
+lgdt_opcode:
+	.word (end_gdt-gdt)-1			# so does gdt 
+	.long gdt						# This will be rewrite by code.
+
+gdt:
+	.quad 0x0000000000000000	/* NULL descriptor */
+	.quad 0x00c09a00000007ff	/* 8Mb 0x08, base = 0x00000 */
+	.quad 0x00c09200000007ff	/* 8Mb 0x10 */
+	.quad 0x00c0920b80000002	/* screen 0x18 - for display */
+
+	.word 0x0068, tss0, 0xe900, 0x0	# TSS0 descr 0x20
+	.word 0x0040, ldt0, 0xe200, 0x0	# LDT0 descr 0x28
+	.word 0x0068, tss1, 0xe900, 0x0	# TSS1 descr 0x30
+	.word 0x0040, ldt1, 0xe200, 0x0	# LDT1 descr 0x38
+end_gdt:
+	.fill 128,4,0
 ```
 
 ## references
