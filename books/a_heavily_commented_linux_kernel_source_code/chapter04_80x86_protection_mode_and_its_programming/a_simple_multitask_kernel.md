@@ -10,7 +10,15 @@
 * how it runs?
     * when the PC is powered on, the program in the ROM BIOS will load the first sector on the boot disk to the beginning of the physical memory `0x7c00`(31KB) position, and transfer the execution control to `0x7c00` to start running the boot code
     * `boot.s` loads the kernel code(`head.s`) into memory location `0x10000`, then copy to `0x0`
-    * enter protected mode, then jump to `0x0` to start running `head.s`
+        * why `boot.s` simply copies the kernel code into `0x0` directly?
+            * the interrupt vector table used by the `BIOS` is loaded into `0x0`
+            * the load process requires the interrupt vector table provided by the `BIOS`
+            * if directly load the `head.s` into `0x0`, this will destroy the interrupt vector table
+    * enter protected mode, then jump to `0x0` to start running `head.s`, `head.s` operates in 32-bit protected mode, and it mainly does the followings:
+        * reset the `GDT` table
+        * set the system timer chip
+        * reset the `IDT` table and set the clock and system call interrupt gate
+        * move to task `A` for execution
 
 ![image](https://user-images.githubusercontent.com/35479537/233771049-a171077e-633e-40e2-8994-baed4873fa4b.png)
 
@@ -24,7 +32,48 @@
 ![image](https://user-images.githubusercontent.com/35479537/233884440-5d234ef2-fa2b-4f29-aaad-74c7d72f6c6f.png)
 
 
+## head.s explained
+
+### `lss`
+```assembly
+lss init_stack, %esp
+...
+init_stack:                          # Will be used as user stack for task0.
+	.long init_stack
+	.word 0x10
+```
+* `LSS` loads `SS:r32` with far pointer from memory.
+* so `ss` will have value 0x10, and `esp` will have value `init_stack`
+
+### setup idt
+![image](https://user-images.githubusercontent.com/35479537/235299109-ae1a4006-e50a-4c58-a6c6-c53d675bc26a.png)
+
+
+```assembly
+setup_idt:
+	lea ignore_int,%edx             # edx as the address of procedure ignore_int, stored in the lower 16 bits
+	movl $0x00080000,%eax           # segment selector as 0x0008
+	movw %dx,%ax                    # store the address of ignore_int in the lower 16 bits of eax
+	movw $0x8E00,%dx	/* interrupt gate - dpl=0, present */
+	lea idt,%edi
+	mov $256,%ecx
+rp_sidt:
+	movl %eax,(%edi)
+	movl %edx,4(%edi)
+	addl $8,%edi
+	dec %ecx
+	jne rp_sidt
+	lidt lidt_opcode
+	ret
+
+...
+
+idt:	.fill 256,8,0		# idt is uninitialized, 256 gate descriptors, 8 bytes each, 2KB total
+```
+
 ## references
 * https://github.com/lolyu/aoi/blob/master/books/understanding_linux_kernel/chapter02_memory_address/x86_segmentation.md
 * https://wiki.osdev.org/Real_Mode#High_Memory_Area
 * https://stackoverflow.com/questions/27804852/assembly-rep-movs-mechanism
+* https://www.felixcloutier.com/x86/lds:les:lfs:lgs:lss
+* 
