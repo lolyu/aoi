@@ -47,14 +47,16 @@ init_stack:                          # Will be used as user stack for task0.
 
 ### setup idt
 ![image](https://user-images.githubusercontent.com/35479537/235299109-ae1a4006-e50a-4c58-a6c6-c53d675bc26a.png)
-
+* `setup_idt`:
+	* use `eax` and `edx` to store gate descriptor 0-3 bytes and 4-7 bytes, and the gate descriptor points to `ignore_int`
+	* all 256 gate descriptors have the same gate descriptor that points to `ignore_int`
 
 ```assembly
 setup_idt:
 	lea ignore_int,%edx             # edx as the address of procedure ignore_int, stored in the lower 16 bits
 	movl $0x00080000,%eax           # segment selector as 0x0008
 	movw %dx,%ax                    # store the address of ignore_int in the lower 16 bits of eax
-	movw $0x8E00,%dx	/* interrupt gate - dpl=0, present */
+	movw $0x8E00,%dx				# 1000 1110: 1110 as 32 bit gate descriptor, 0 as DPL, 1 as P(present)
 	lea idt,%edi
 	mov $256,%ecx
 rp_sidt:
@@ -63,8 +65,14 @@ rp_sidt:
 	addl $8,%edi
 	dec %ecx
 	jne rp_sidt
-	lidt lidt_opcode
+	lidt lidt_opcode				# lidt loads six bytes into IDTR, 2 bytes limit and 4 bytes base address
 	ret
+
+...
+
+lidt_opcode:
+	.word 256*8-1					# idt contains 256 entries
+	.long idt						# This will be rewrite by code. 
 
 ...
 
@@ -76,4 +84,5 @@ idt:	.fill 256,8,0		# idt is uninitialized, 256 gate descriptors, 8 bytes each, 
 * https://wiki.osdev.org/Real_Mode#High_Memory_Area
 * https://stackoverflow.com/questions/27804852/assembly-rep-movs-mechanism
 * https://www.felixcloutier.com/x86/lds:les:lfs:lgs:lss
-* 
+* https://wiki.osdev.org/Interrupt_Descriptor_Table
+* https://www.felixcloutier.com/x86/lgdt:lidt
