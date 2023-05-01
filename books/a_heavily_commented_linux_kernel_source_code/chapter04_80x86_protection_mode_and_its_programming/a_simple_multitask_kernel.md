@@ -89,8 +89,8 @@ setup_gdt:
 ...
 
 lgdt_opcode:
-	.word (end_gdt-gdt)-1			# so does gdt 
-	.long gdt						# This will be rewrite by code.
+	.word (end_gdt-gdt)-1				# so does gdt 
+	.long gdt					# This will be rewrite by code.
 
 gdt:
 	.quad 0x0000000000000000	/* NULL descriptor */
