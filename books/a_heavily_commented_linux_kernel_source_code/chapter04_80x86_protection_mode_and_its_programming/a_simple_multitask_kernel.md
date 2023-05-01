@@ -54,7 +54,7 @@ init_stack:                          # Will be used as user stack for task0.
 ```assembly
 setup_idt:
 	lea ignore_int,%edx				# edx as the address of procedure ignore_int, stored in the lower 16 bits
-	movl $0x00080000,%eax			# segment selector as 0x0008
+	movl $0x00080000,%eax				# segment selector as 0x0008
 	movw %dx,%ax					# store the address of ignore_int in the lower 16 bits of eax
 	movw $0x8E00,%dx				# 1000 1110: 1110 as 32 bit gate descriptor, 0 as DPL, 1 as P(present)
 	lea idt,%edi
@@ -72,7 +72,7 @@ rp_sidt:
 
 lidt_opcode:
 	.word 256*8-1					# idt contains 256 entries
-	.long idt						# This will be rewrite by code. 
+	.long idt					# This will be rewrite by code. 
 
 ...
 
