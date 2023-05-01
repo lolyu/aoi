@@ -34,6 +34,8 @@
 
 ## head.s explained
 
+## the memory layout
+
 ### `lss`
 ```assembly
 lss init_stack, %esp
@@ -106,6 +108,72 @@ end_gdt:
 	.fill 128,4,0
 ```
 
+### timer_interrupt
+* `timer_interrupt` is acted as a task scheduled in this kernel.
+* when working in protected mode, `jmp` could be used to do a task switch:
+	* Executing a task switch with the JMP instruction is somewhat similar to executing a jump through a call gate. Here the target operand specifies the segment selector of the task gate for the task being switched to (and the offset part of the target operand is ignored). The task gate in turn points to the TSS for the task, which contains the segment selectors for the task’s code and stack segments. The TSS also contains the EIP value for the next instruction that was to be executed before the task was suspended. This instruction pointer value is loaded into the EIP register so that the task begins executing again at this next instruction.
+```assembly
+timer_interrupt:
+	push %ds					# as ds and eax are modified in the interrupt handler
+	pushl %eax					# push onto the stack to store its original values
+	movl $0x10, %eax
+	mov %ax, %ds
+	movb $0x20, %al
+	outb %al, $0x20
+	movl $1, %eax
+	cmpl %eax, current				# check if the current task is #1
+	je 1f						# if task is #1, goto 1f
+	movl %eax, current				# if the current task is #0, assign current with 1f
+	ljmp $TSS1_SEL, $0				# long jump to the tss segment selector for TSS1
+	jmp 2f						# goto 2f
+1:	movl $0, current				# if the current task is #1, assign current with 0f
+	ljmp $TSS0_SEL, $0				# long jump to the tss segment selector for TSS0
+2:	popl %eax					# restore original eax
+	pop %ds						# restore original ds
+	iret
+```
+### system_interrupt
+* the caller must save the register to be used, so the `system_interrupt` should save those registers changed by function `write_char`
+```assembly
+write_char:
+	push %gs
+	pushl %ebx
+#	pushl %eax
+	mov $SCRN_SEL, %ebx
+	mov %bx, %gs
+	movl scr_loc, %bx
+	shl $1, %ebx
+	movb %al, %gs:(%ebx)
+	shr $1, %ebx
+	incl %ebx
+	cmpl $2000, %ebx
+	jb 1f
+	movl $0, %ebx
+1:	movl %ebx, scr_loc	
+#	popl %eax
+	popl %ebx
+	pop %gs
+	ret
+...
+
+/* system call handler */
+.align 2
+system_interrupt:
+	push %ds
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+	pushl %eax
+	movl $0x10, %edx
+	mov %dx, %ds
+	call write_char
+	popl %eax
+	popl %ebx
+	popl %ecx
+	popl %edx
+	pop %ds
+	iret
+```
 ## references
 * https://github.com/lolyu/aoi/blob/master/books/understanding_linux_kernel/chapter02_memory_address/x86_segmentation.md
 * https://wiki.osdev.org/Real_Mode#High_Memory_Area
@@ -113,3 +181,4 @@ end_gdt:
 * https://www.felixcloutier.com/x86/lds:les:lfs:lgs:lss
 * https://wiki.osdev.org/Interrupt_Descriptor_Table
 * https://www.felixcloutier.com/x86/lgdt:lidt
+* https://www.felixcloutier.com/x86/jmp
