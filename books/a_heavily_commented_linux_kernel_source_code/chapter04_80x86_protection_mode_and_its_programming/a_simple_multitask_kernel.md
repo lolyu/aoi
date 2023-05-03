@@ -175,6 +175,63 @@ system_interrupt:
 	pop %ds
 	iret
 ```
+
+### use `IRET` to start task execution
+```
+# Move to user mode (task 0)
+	pushfl
+	andl $0xffffbfff, (%esp)
+	popfl
+	movl $TSS0_SEL, %eax
+	ltr %ax
+	movl $LDT0_SEL, %eax
+	lldt %ax 
+	movl $0, current
+	sti
+	pushl $0x17					# SS
+	pushl $init_stack				# ESP
+	pushfl						# EFLAGS
+	pushl $0x0f					# CS
+	pushl $task0					# EIP
+	iret
+```
+
+![image](https://user-images.githubusercontent.com/35479537/235851114-1e0c607d-9cbf-47e1-9ce5-3a0c999919af.png)
+
+
+## workflow
+* the workflow of the this multitask kernel
+	* `boot.s` jumps to the code segment of `head.s`
+		* `jmpi 0,8` transfer the execution to the segment descriptor `0x8` with offset `0`
+			* so `CS` will be loaded with the code segment located as the second entry in `GDT`
+			* `EIP` will be loaded with value `0`
+	* setup `IDT`
+	* setup `GDT`
+	* setup general purpose registers and stack
+		* `DS` as `0x10`
+		* `ES` as `0x10`
+		* `FS` as `0x10`
+		* `GS` as `0x10`
+		* `SS` as `0x10`
+		* `ESP` as `init_stack`
+	* setup 8253 chip with interrupt interval as 10ms
+	* setup IDT interrupt handler and trap handler entry
+		* 8th entry as `timer_interrupt` to handle interrupt
+		* 128th entry as `system_interrupt` to handle trap
+	* setup the `IRET` environment(`TR`, `LDTR` and stack) and use `IRET` to start executing `task0`
+		* `TR` as `tss0`
+		* `LDTR` as `ldt0`
+		* push `SS`, `ESP`, `EFLAGS`, `CS`, and `EIP` onto the stack so `IRET` will restore those registers for `task0`
+	* `task0` execution
+		* load `DS` as it is not initialized yet
+		* print `A`
+	* `timer_interrupt` execution
+		* x86 processors will load `CS` and `EIP` from the `IDT` entry
+			* from `CS` and `EIP`, OS could locate the handler procedue
+		* long jump with a TSS segment selector will conduct a task switch
+		* if `current` == 1, `ljmp $TSS0_SEL`
+		* if `current` == 0, `ljmp $TSS1_SEL`
+
 ## references
 * https://github.com/lolyu/aoi/blob/master/books/understanding_linux_kernel/chapter02_memory_address/x86_segmentation.md
 * https://wiki.osdev.org/Real_Mode#High_Memory_Area
@@ -183,3 +240,4 @@ system_interrupt:
 * https://wiki.osdev.org/Interrupt_Descriptor_Table
 * https://www.felixcloutier.com/x86/lgdt:lidt
 * https://www.felixcloutier.com/x86/jmp
+* https://iitd.github.io/os/2022/lec/l7.html
