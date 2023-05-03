@@ -35,6 +35,7 @@
 ## head.s explained
 
 ## the memory layout
+![simple_multitask_kernel](https://user-images.githubusercontent.com/35479537/235480894-b53f6774-85ef-46c1-80e9-e6fc5fe080be.jpg)
 
 ### `lss`
 ```assembly
