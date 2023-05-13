@@ -62,6 +62,16 @@ PhysicalAddress = Segment * 16 + Offset
 ![image](https://github.com/lolyu/aoi/assets/35479537/567d279a-344e-4e92-9d7f-4d9ccc967cc9)
 
 
+## paging
+* registers:
+    * `CR0`: whether to enable paging
+    * `CR3`: also as `PDTR`, stores the base physical address of the page directory table
+* the linear address is divided into 4K pages
+* one page table takes 4K physical memory, as `PTE` is of 4 bytes, so 1024 `PTE`s
+* one page directory
+![image](https://github.com/lolyu/aoi/assets/35479537/41c0786f-3aca-42db-8fa7-41b4e982f68c)
+
+
 ## reference
 * https://wiki.osdev.org/Real_Mode
 * https://wiki.osdev.org/Protected_Mode
