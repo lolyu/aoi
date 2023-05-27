@@ -11,7 +11,7 @@
         * returns `true` if `m_buffer` or `m_keyspace_event_buffer` is not empty
     * `hasCachedData()`
         * returns `bool(m_buffer.size() + m_keyspace_event_buffer.size() > 1)`
-    * `initializedWithData()
+    * `initializedWithData()`
         * returns `!m_buffer.empty()`
     * `popEventBuffer()`
         * pops a key event from `m_keyspace_event_buffer`
