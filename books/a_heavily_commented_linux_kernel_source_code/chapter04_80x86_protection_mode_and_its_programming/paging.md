@@ -40,7 +40,7 @@
 ### PTE
 ![image](https://user-images.githubusercontent.com/35479537/227757895-0ee2e778-2f72-4c80-a8c1-adff1bf82195.png)
 
-fields:
+* fields:
     * `P`: present flag
     * `R/W`: 1 for r/w/e, 0 for r/e, superuser ignore this flag
     * `U/S`: user/superuser
