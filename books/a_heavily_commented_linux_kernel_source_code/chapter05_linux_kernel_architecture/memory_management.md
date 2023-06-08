@@ -72,6 +72,21 @@ PhysicalAddress = Segment * 16 + Offset
 ![image](https://github.com/lolyu/aoi/assets/35479537/41c0786f-3aca-42db-8fa7-41b4e982f68c)
 
 
+## 0.12 kernel memory layout
+![image](https://github.com/lolyu/aoi/assets/35479537/8908a4da-0f26-45d0-bca6-d6876217abd7)
+* 0.12 kernel supports up to `NR_TASKS` = 64 tasks
+* the starting position of each task in the linear address space is (task number) * 64 MB
+* in the above pic, four tasks total:
+    * the kernel code segment and data segment are mapped to the beginning 16MB area of the linear address space
+    * task 0 is started by the kernel, and its code segment and data segment is 640KB starting from 0
+
+* **NOTE**: data segment and code segment used in the task logical address space is not the same concept as the code segment and data segment used in segmentation:
+    * In segmentation, the code and data segments describes a segment in the linear address space with access constraints.
+    * In task logical address space, the code section and data section refer to the code area and initialized && uninitialzed data area.
+
+![image](https://github.com/lolyu/aoi/assets/35479537/4ea1112d-d46c-4309-a794-5b8d1ec2e3f6)
+
+
 ## reference
 * https://wiki.osdev.org/Real_Mode
 * https://wiki.osdev.org/Protected_Mode
