@@ -36,10 +36,13 @@
 
 
 * `SlotBase`:
-    * `m_handler`
-    * `m_sn`
+    * `m_handler`: a `SwitchNotifications` object
+    * `m_sn`: a `sai_switch_notifications_t` struct
+    * `m_slots.at(context)->m_handler->onFdbEvent(count,data)`
 
 * `Slot`
 
 * `SwitchNotifications`:
+    * `m_slots`
     * `m_slot`
+    * `getSwitchNotifications()`
