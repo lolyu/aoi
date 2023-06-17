@@ -1,4 +1,4 @@
-# sai and syncd
+# syncd class notes
 
 * class `NotificationProducer`: send message through redis channel
     * `m_db`: `DBConnector` obj
@@ -53,7 +53,7 @@
     * `readData()`: read from `m_efd`
     * `notify()`: write to `m_efd` to make it readable
 
-* `SelectableChannel`(`SelectableChannel`): a selectable based on `ZMQ_REP` `zeroMQ` socket with endpoint: `"ipc:///tmp/saiServer"`
+* `SelectableChannel`(`SelectableChannel`): a selectable based on `ZMQ_REP` `zeroMQ` socket with endpoint: `"ipc:///tmp/saiServer"`, the messages received are jsonized strings
     * `m_endpoint`: `zeroMQ` endpoint string
     * `m_context`: `zeroMQ` context`
     * `m_socket`: `zeroMQ` socket
@@ -67,6 +67,7 @@
     * `set()`: send replies to the `zeroMQ` socket, finish the receive/send` pattern, and notify `zmqPollThread` to poll next request by setting `m_allowZmqPoll` to true.
     * `getFd()`: return `m_selectableEvent.getFd()`
     * `zmqPollThread()`: keeps polling the `zeroMQ` socket and store the requests into `m_queue`, and call `m_selectableEvent.notify()` to notify the events to the select event loop.
+    * `pop`: pop out one request from `m_queue`, json-loads the request string, and returns `KeyOpFieldsValuesTuple`
  
 
 ## SAI interface
@@ -90,16 +91,35 @@
     * `set()`: `m_sai->set()`
     * `get()`: `m_sai->get()`
 
+* `Sai`(`SaiInterface`): the actual `SAI` object to interact with `ASIC_DB` to talk to `syncd`
+    * `m_apiInitialized`
+    * `m_apimutex`
+    * `m_contextMap`
+    * `m_service_method_table`
+    * `m_recorder`
+
 * `ServerSai`(`SaiInterface`):
     * `m_apiInitialized`: bool if the `SAI` API is initialized
     * `m_runServerThread`: bool if `m_serverThread` is started
     * `m_apimutex`
     * `m_service_method_table`
-    * `m_sai`: `SAI` object
+    * `m_sai`: `SAI` object, the actual `SAI` obj to talk to syncd
     * `m_serverThread`: thread running `serverThreadFunction`
     * `m_selectableChannel`: a `ZeroMQSelectableChannel` object
     * `m_serverThreadThreadShouldEndEvent`: event to notify `serverThreadFunction` to exit
-    * `serverThreadFunction`
+    * `serverThreadFunction`: keeps polling the `m_selectableChannel` to read any request from the `ZeroMQ` client, and call `processEvent` to process
+    * `processEvent()`: pop the event and call `processSingleEvent()`
+    * `processSingleEvent()`:
+        * dispatch the events to the corresponding handlers based on the redis asic state command type(`REDIS_ASIC_STATE_COMMAND_*`)
+        * create(`REDIS_ASIC_STATE_COMMAND_CREATE`) -> `processQuadEvent(SAI_COMMON_API_CREATE, kco)` -> `processEntry`
+        * remove(`REDIS_ASIC_STATE_COMMAND_REMOVE`) -> `processQuadEvent(SAI_COMMON_API_REMOVE, kco)` -> `processEntry`
+        * set(`REDIS_ASIC_STATE_COMMAND_SET`) -> `processQuadEvent(SAI_COMMON_API_SET, kco)` -> `processEntry`
+        * get(`REDIS_ASIC_STATE_COMMAND_GET`) -> `processQuadEvent(SAI_COMMON_API_GET, kco)` -> `processEntry`
+    * `processEntry()`
+        * `SAI_COMMON_API_CREATE` -> `m_sai->create()`
+        * `SAI_COMMON_API_REMOVE` -> `m_sai->remove()`
+        * `SAI_COMMON_API_SET` -> `m_sai->set()`
+        * `SAI_COMMON_API_GET` -> `m_sai->get()`
     * `create()`: `m_sai->create()`
     * `remove()`: `m_sai->remove()`
     * `set()`: `m_sai->set()`
