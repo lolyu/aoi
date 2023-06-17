@@ -51,3 +51,4 @@ typedef uint64_t sai_object_id_t;
 
 ## references
 * https://github.com/opencomputeproject/SAI/blob/master/doc/SAI-Extensions.md
+* https://github.com/lolyu/aoi/blob/master/sonic/sonic-sairedis/sai_basics.md
