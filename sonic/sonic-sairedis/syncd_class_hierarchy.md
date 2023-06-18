@@ -200,6 +200,9 @@
     * `m_selectableChannel`: a `ZeroMQSelectableChannel` object
     * `m_serverThreadThreadShouldEndEvent`: event to notify `serverThreadFunction` to exit
     * `serverThreadFunction`: keeps polling the `m_selectableChannel` to read any request from the `ZeroMQ` client, and call `processEvent` to process
+    * `initialize()`
+  		* `m_sai->initialize()`
+  		* start `m_serverThread` to keep handling requests from  the `ZeroMQ` channel
     * `processEvent()`: pop the event and call `processSingleEvent()`
     * `processSingleEvent()`:
         * dispatch the events to the corresponding handlers based on the redis `ASIC` state command type(`REDIS_ASIC_STATE_COMMAND_*`)
