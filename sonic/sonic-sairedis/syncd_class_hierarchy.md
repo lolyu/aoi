@@ -82,8 +82,23 @@
     * `zmqPollThread()`: keeps polling the `zeroMQ` socket and store the requests into `m_queue`, and call `m_selectableEvent.notify()` to notify the events to the select event loop.
     * `pop`: pop out one request from `m_queue`, json-loads the request string, and returns `KeyOpFieldsValuesTuple`
 
- * class `ContextConfig`: **Question?**: what is `ContextConfig`? is it per virtual switch?
-    * `m_guid`
+* class `SwitchConfig`
+	* `m_switchIndex`
+		* default `0`
+	* `m_hardwareInfo`
+		* default `""`
+
+```
+Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added switch: idx 0, hwinfo ''
+``` 
+
+
+* class `SwitchConfigContainer`:
+	* `m_indexToConfig`: mapping from switch index to `SwitchConfig` object
+	* `m_hwinfoToConfig`: mapping from hardware info to `SwitchConfig` object
+
+* class `ContextConfig`: **Question?**: what is `ContextConfig`? Is it per virtual switch?
+	* `m_guid`
     * `m_name`
     * `m_dbAsic`
     * `m_dbCounters`
@@ -95,7 +110,16 @@
         * default `"ipc:///tmp/zmq_ep"`
     * `m_zmqNtfEndpoint`
         * default `"ipc:///tmp/zmq_ntf_ep"`
-    * `m_scc`
+    * `m_scc`: a `SwitchConfigContainer`
+
+* class `ContextConfigContainer`: stores the mapping from context to `ContextConfig`
+	* `m_map`
+	* `insert()`
+ 	* `get()`
+	* `getAllContextConfigs()`
+	* `loadFromFile()`
+	* `getDefault()`
+		* return one `ContextConfigContainer` obj with one `ContextConfig` that contains a default `SwitchConfig`
 
 * class `Context`:
     * `m_meta`
@@ -140,6 +164,9 @@
         *  notification: `n`
         *  generic response: `E`
 
+* class `VirtualObjectIdManager`: construct or parse a `SAI` object OID(`sai_object_id_t`)
+	* **NOTE**: a `sai_object_id_t`(64bits) is consisted of four parts: `<switch index(8bits)><context index(8bits)><object type(8bits)><object index(40bits)>`
+
 ## SAI interface
 * class `SaiInterface`: class to define the `SAI` APIs to do `CRUD` operations
     * `initialize()`
@@ -181,14 +208,32 @@
     * `set()`: `m_sai->set()`
     * `get()`: `m_sai->get()`
 
+
 * class `Sai`(`SaiInterface`): the actual `SAI` object to interact with `ASIC_DB` to talk to `syncd`
     * `m_apiInitialized`
     * `m_apimutex`
     * `m_contextMap`
+		* **NOTE**: the `SAI` API calls are dispatched to the corresponding context by macro `REDIS_CHECK_CONTEXT`
     * `m_service_method_table`
     * `m_recorder`
     * `initialize()`: setup the `Context` based on the context config
         * **QUESTION?**: what is the context?
+	* `create()`: `context->m_meta->create()`
+	* `remove()`: `context->m_meta->remove()`
+ 	* `set()`: `context->m_meta->set()`
+  	* `get()`: `context->m_meta->get()`
+
+```cpp
+#define REDIS_CHECK_CONTEXT(oid)                                            \
+    auto _globalContext = VirtualObjectIdManager::getGlobalContext(oid);    \
+    auto context = getContext(_globalContext);                              \
+    if (context == nullptr) {                                               \
+        SWSS_LOG_ERROR("no context at index %u for oid %s",                 \
+                _globalContext,                                             \
+                sai_serialize_object_id(oid).c_str());                      \
+        return SAI_STATUS_FAILURE; }
+```
+
 
 * class `ServerSai`(`SaiInterface`):
     * `m_apiInitialized`: bool if the `SAI` API is initialized
