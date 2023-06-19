@@ -24,7 +24,7 @@
     * `m_notificationProducer`
     * `send()`
 
-* class `RedisCLient`:
+* class `RedisClient`:
 
 * class `NotificationQueue`: class to act as notification queue
     * `enqueue()`
@@ -122,9 +122,9 @@ Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added sw
 		* return one `ContextConfigContainer` obj with one `ContextConfig` that contains a default `SwitchConfig`
 
 * class `Context`:
-    * `m_meta`
-    * `m_redisSai`
-    * `m_notificationCallback`
+    * `m_meta`: a `Meta` object
+    * `m_redisSai`: a `RedisRemoteSaiInterface` object
+    * `m_notificationCallback`: notification callback
 
 * class `Channel`: virtual class to represent a channel to `syncd`
     * `m_callback`
@@ -139,7 +139,7 @@ Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added sw
     * `del()`
     * `wait()`
 
-* class `RedisChannel`(`Channel`):
+* class `RedisChannel`(`Channel`): the class to interact syncd via `ASIC_DB`, it could send requests/receive responses from `syncd`, and it starts a thread listening for any notifications from `syncd`.
     * `m_dbAsic`: `"ASIC_DB"`
     * `m_asicState`: `ProducerTable` used to send commands(create/remove/set/get) to syncd
     * `m_getConsumer`: `ConsumerTable` used to receive responses from `syncd`
@@ -151,6 +151,7 @@ Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added sw
     * `set()`
     * `del()`
     * `wait()`: wait for the specified response from `syncd`
+		* for `SAI` operations, first use `m_asicState` to write to `ASIC_DB` to notify the `syncd` to process the `SAI` operations, then use `m_getConsumer` to wait for responses.
 
 * class `Recorder`: log `Sai` API calls to `sairedis.rec`
     * `Recorder use letters to represent API call operations, lower letters for API calls, upper letters for API calls' responses:
@@ -167,6 +168,17 @@ Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added sw
 * class `VirtualObjectIdManager`: construct or parse a `SAI` object OID(`sai_object_id_t`)
 	* **NOTE**: a `sai_object_id_t`(64bits) is consisted of four parts: `<switch index(8bits)><context index(8bits)><object type(8bits)><object index(40bits)>`
 
+* class `Notification`: base class to represent a notification
+
+* class `NotificationFdbEvent`(`Notification`): class to represent a `FDB` event notification
+
+* class `Switch`: class to represent a virtual switch
+	* `m_switchId`: `SAI` switch object `oid`
+ 	* `m_switchNotifications`: struct `sai_switch_notifications_t` to contains all notification handler pointers
+	* `m_hardwareInfo`: `SAI` switch hardware info
+ 	* `updateNotifications(attrCount, *attrList)`: update `m_switchNotifications` struct
+  		* when the switch is created, the notification handler pointers are passed as the object attributes
+
 ## SAI interface
 * class `SaiInterface`: class to define the `SAI` APIs to do `CRUD` operations
     * `initialize()`
@@ -178,6 +190,12 @@ Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added sw
 
 * class `RemoteSaiInterface`(`SaiInterface`):
 
+* class `Meta`(`SaiInterface`): provide API calls parameter validation
+	* `m_portRelatedSet`: mapping from port `oid` to its related objects' `oid`s.
+	* `m_oids`: mapping from object `oid` to its reference counter
+	* `m_saiObjectCollection`:
+	* `m_attrKeys`
+
 * Gaps:
     * what is SAI meta?
     * what is vid?
@@ -186,6 +204,7 @@ Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added sw
     * `m_contextConfig`
     * `m_redisCommunicationMode`
     * `m_recorder`
+    * `m_switchContainer`: contains all the virtual switch created via this `SaiInterface`
     * `m_notificationCallback`
     * `initialize()`
         * initialize the communication channel
@@ -223,6 +242,7 @@ Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added sw
  	* `set()`: `context->m_meta->set()`
   	* `get()`: `context->m_meta->get()`
 
+* the context check macro
 ```cpp
 #define REDIS_CHECK_CONTEXT(oid)                                            \
     auto _globalContext = VirtualObjectIdManager::getGlobalContext(oid);    \
@@ -233,6 +253,29 @@ Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added sw
                 sai_serialize_object_id(oid).c_str());                      \
         return SAI_STATUS_FAILURE; }
 ```
+
+* notifications captured in the `ASIC_DB`
+```
+127.0.0.1:6379> subscribe NOTIFICATIONS
+Reading messages... (press Ctrl-C to quit)
+1) "subscribe"
+2) "NOTIFICATIONS"
+3) (integer) 1
+1) "message"
+2) "NOTIFICATIONS"
+3) "[\"fdb_event\",\"[{\\\"fdb_entry\\\":\\\"{\\\\\\\"bvid\\\\\\\":\\\\\\\"oid:0x2600000000063d\\\\\\\",\\\\\\\"mac\\\\\\\":\\\\\\\"00:06:07:08:09:0A\\\\\\\",\\\\\\\"switch_id\\\\\\\":\\\\\\\"oid:0x21000000000000\\\\\\\"}\\\",\\\"fdb_event\\\":\\\"SAI_FDB_EVENT_LEARNED\\\",\\\"list\\\":[{\\\"id\\\":\\\"SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID\\\",\\\"value\\\":\\\"oid:0x3a000000000652\\\"}]}]\"]"
+```
+* How does the notification get processed?
+	* thread `RedisChannel::notificationThreadFunction()` ->
+	* `RedisRemoteSaiInterface::handleNotification()` ->
+		1. convert the serialized notification to its corresponding `Notification` derivative classes.
+    	2. get the registered notification handler pointers
+			* `Context::handle_notification()` ->
+			* `Sai::handle_notification()` ->
+			* `RedisRemoteSaiInterface::syncProcessNotification()`
+		3. `notification->executeCallback(sn)`
+
+* How does OA register the notification handlers?
 
 
 * class `ServerSai`(`SaiInterface`):
