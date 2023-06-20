@@ -6,3 +6,4 @@
     * [SAI fundamentals](https://github.com/opencomputeproject/SAI/blob/master/doc/spec.md)
     * [SAI player](https://github.com/sonic-net/SONiC/wiki/How-to-Use-SAI-Player)
     * [SAI object id](https://github.com/opencomputeproject/SAI/blob/master/doc/SAI-Proposal-7-UOID.md)
+    * [SAI types and attributes meta](https://github.com/opencomputeproject/SAI/blob/master/meta/saisanitycheck.c)
