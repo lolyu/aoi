@@ -98,7 +98,7 @@ Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added sw
 	* `m_hwinfoToConfig`: mapping from hardware info to `SwitchConfig` object
 
 * class `ContextConfig`: **Question?**: what is `ContextConfig`? Is it per virtual switch?
-	* `m_guid`
+	* `m_guid`: the switch id
     * `m_name`
     * `m_dbAsic`
     * `m_dbCounters`
@@ -231,7 +231,7 @@ Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added sw
 * class `Sai`(`SaiInterface`): the actual `SAI` object to interact with `ASIC_DB` to talk to `syncd`
     * `m_apiInitialized`
     * `m_apimutex`
-    * `m_contextMap`
+    * `m_contextMap`: mapping from switch oid to its `Context` object.
 		* **NOTE**: the `SAI` API calls are dispatched to the corresponding context by macro `REDIS_CHECK_CONTEXT`
     * `m_service_method_table`
     * `m_recorder`
