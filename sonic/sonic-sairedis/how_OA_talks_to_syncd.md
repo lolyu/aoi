@@ -33,6 +33,26 @@ sai_status_t sai_api_initialize(
     return redis_sai->initialize(flags, service_method_table);
 }
 ```
+* `OA` initializes a `ServerSai` object that is responsible to talk to `SYNCD`
+
+
+#### `sai_api_query`
+```cpp
+sai_status_t sai_api_query(
+        _In_ sai_api_t sai_api_id,
+        _Out_ void** api_method_table)
+{
+    SWSS_LOG_ENTER();
+
+    if (sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_api_t, sai_api_id))
+    {
+        *api_method_table = ((void**)&redis_apis)[sai_api_id - 1];
+        return SAI_STATUS_SUCCESS;
+    }
+
+    return SAI_STATUS_INVALID_PARAMETER;
+}
+```
 
 ## Notification handle
 
