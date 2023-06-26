@@ -53,6 +53,7 @@ sai_status_t sai_api_query(
     return SAI_STATUS_INVALID_PARAMETER;
 }
 ```
+* `sai_metadata_enum_sai_api_t` stores the mapping from `SAI` API enum to its string values.
 
 ## Notification handle
 
