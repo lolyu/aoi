@@ -126,7 +126,7 @@
     * confirmation from a unicast solicitation's reply
         * **NOTE**: must be an unicast reply, broadcast reply will move the state into `NUD_STALE` instead of `NUD_REACHABLE`
     * confirmation from l4 layer packet sent by the neighbor
-
+        * a user-space application can confirm the reachability of the gateway by using the `MSG_CONFIRM` option with transmission calls such as `send` and `sendmsg`.
 ##### reachability confirmation by l4 layer packet
 ![image](https://user-images.githubusercontent.com/35479537/221804359-30b6946c-f03d-48c1-b945-8f0b01d17edd.png)
 * why l4 not l3?
