@@ -135,16 +135,16 @@
     * yes
 ```
 $ ip neighbor | grep 192.168.0.40
-192.168.0.40 dev Vlan1000 lladdr 02:a2:6b:18:93:14 STALE
+192.168.0.40 dev Vlan1000 lladdr 02:a2:6b:18:93:14 STALE            // STALE: entry not used for a while
 $ echo -n 'helloworld' > /dev/udp/192.168.0.40/4210
 $ ip neighbor | grep 192.168.0.40
-192.168.0.40 dev Vlan1000 lladdr 02:a2:6b:18:93:14 DELAY
+192.168.0.40 dev Vlan1000 lladdr 02:a2:6b:18:93:14 DELAY            // DELAY: entry used, but no confirmation
 $ ip neighbor | grep 192.168.0.40
 192.168.0.40 dev Vlan1000 lladdr 02:a2:6b:18:93:14 DELAY
 $ ip neighbor | grep 192.168.0.40
-192.168.0.40 dev Vlan1000 lladdr 02:a2:6b:18:93:14 PROBE
+192.168.0.40 dev Vlan1000 lladdr 02:a2:6b:18:93:14 PROBE            // PROBE: proactive probe
 $ ip neighbor | grep 192.168.0.40
-192.168.0.40 dev Vlan1000  FAILED
+192.168.0.40 dev Vlan1000  FAILED                                   // FAILED: no confirmation
 ```
 
 ## references
