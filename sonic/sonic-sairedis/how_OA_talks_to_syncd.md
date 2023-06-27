@@ -37,6 +37,7 @@ sai_status_t sai_api_initialize(
 
 
 #### `sai_api_query`
+* basically, `sai_api_query` binds the `SAI` API pointer to the requested `SAI` API(`sai_<feature>_api_t`) that stores `SAI` Redis APIs.
 ```cpp
 sai_status_t sai_api_query(
         _In_ sai_api_t sai_api_id,
@@ -53,7 +54,66 @@ sai_status_t sai_api_query(
     return SAI_STATUS_INVALID_PARAMETER;
 }
 ```
-* `sai_metadata_enum_sai_api_t` stores the mapping from `SAI` API enum to its string values.
+* key data structures:
+    * `sai_api_t`: an enum to list out all supported `SAI` APIs
+    * `sai_enum_metadata_t`: a struct to stores the mapping from an enum to its string values
+        * `sai_metadata_enum_sai_api_t` stores the mapping from `SAI` API enum to its string values.
+    * `sai_apis_t`: a struct acting as a pointer collection of all the `SAI` API structs.
+* the macro `API` constructs the `SAI` API pointer to point to `SAI` API structs with `SAI` Redis API functions.
+```cpp
+#define API(api) .api ## _api = const_cast<sai_ ## api ## _api_t*>(&redis_ ## api ## _api)
+
+static sai_apis_t redis_apis = {
+    API(switch),
+    API(port),
+    API(fdb),
+    API(vlan),
+    API(virtual_router),
+    API(route),
+    API(next_hop),
+    ...
+    API(bfd),
+};
+```
+
+##### BFD Redis `SAI` API
+* https://github.com/sonic-net/sonic-sairedis/blob/master/lib/sai_redis_bfd.cpp
+* the `bfd` `SAI` APIs is expanded as the following:
+```cpp
+#include "sai_redis.h"
+
+static sai_status_t redis_create_bfd_session(sai_object_id_t *object_id, sai_object_id_t switch_id, uint32_t attr_count, const sai_attribute_t *attr_list)
+{
+    SWSS_LOG_ENTER();
+    return redis_sai->create((sai_object_type_t)SAI_OBJECT_TYPE_BFD_SESSION, object_id, switch_id, attr_count, attr_list);
+};
+static sai_status_t redis_remove_bfd_session(sai_object_id_t object_id)
+{
+    SWSS_LOG_ENTER();
+    return redis_sai->remove((sai_object_type_t)SAI_OBJECT_TYPE_BFD_SESSION, object_id);
+};
+static sai_status_t redis_set_bfd_session_attribute(sai_object_id_t object_id, const sai_attribute_t *attr)
+{
+    SWSS_LOG_ENTER();
+    return redis_sai->set((sai_object_type_t)SAI_OBJECT_TYPE_BFD_SESSION, object_id, attr);
+};
+static sai_status_t redis_get_bfd_session_attribute(sai_object_id_t object_id, uint32_t attr_count, sai_attribute_t *attr_list)
+{
+    SWSS_LOG_ENTER();
+    return redis_sai->get((sai_object_type_t)SAI_OBJECT_TYPE_BFD_SESSION, object_id, attr_count, attr_list);
+};
+
+const sai_bfd_api_t redis_bfd_api = {
+    redis_create_bfd_session,
+    redis_remove_bfd_session,
+    redis_set_bfd_session_attribute,
+    redis_get_bfd_session_attribute,
+    redis_get_bfd_session_stats,
+    redis_get_bfd_session_stats_ext,
+    redis_clear_bfd_session_stats,
+};
+
+```
 
 ## Notification handle
 
