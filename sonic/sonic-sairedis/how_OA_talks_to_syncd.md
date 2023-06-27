@@ -115,6 +115,34 @@ const sai_bfd_api_t redis_bfd_api = {
 
 ```
 
+### `initSaiRedis()`
+* set the log location and filename.
+
+## CRUD operations
+* let's take `BFD` session as example in this section.
+
+### create
+```cpp
+    attr.id = SAI_BFD_SESSION_ATTR_TYPE;
+    attr.value.s32 = bfd_session_type;
+    attrs.emplace_back(attr);
+    fvVector.emplace_back("type", session_type_lookup.at(bfd_session_type));
+
+    uint32_t local_discriminator = bfd_gen_id();
+    attr.id = SAI_BFD_SESSION_ATTR_LOCAL_DISCRIMINATOR;
+    attr.value.u32 = local_discriminator;
+    attrs.emplace_back(attr);
+    fvVector.emplace_back("local_discriminator", to_string(local_discriminator));
+
+    ...
+
+    fvVector.emplace_back("state", session_state_lookup.at(SAI_BFD_SESSION_STATE_DOWN));
+
+    sai_object_id_t bfd_session_id = SAI_NULL_OBJECT_ID;
+    sai_status_t status = sai_bfd_api->create_bfd_session(&bfd_session_id, gSwitchId, (uint32_t)attrs.size(), attrs.data());
+```
+
+
 ## Notification handle
 
 
