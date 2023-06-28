@@ -191,6 +191,7 @@ Jun 17 15:45:32.611800 lab-dev-acs-01 NOTICE swss#orchagent: :- insert: added sw
 * class `RemoteSaiInterface`(`SaiInterface`):
 
 * class `Meta`(`SaiInterface`): provide API calls parameter validation
+	* `m_implementation`: a `RedisRemoteSaiInterface`
 	* `m_portRelatedSet`: mapping from port `oid` to its related objects' `oid`s.
 	* `m_oids`: mapping from object `oid` to its reference counter
 	* `m_saiObjectCollection`:
@@ -283,7 +284,7 @@ Reading messages... (press Ctrl-C to quit)
     * `m_runServerThread`: bool if `m_serverThread` is started
     * `m_apimutex`
     * `m_service_method_table`
-    * `m_sai`: `SAI` object, the actual `SAI` obj to talk to `syncd`
+    * `m_sai`: `Sai` object, the actual `SAI` interface obj to talk to `syncd`
     * `m_serverThread`: thread running `serverThreadFunction`
     * `m_selectableChannel`: a `ZeroMQSelectableChannel` object
     * `m_serverThreadThreadShouldEndEvent`: event to notify `serverThreadFunction` to exit
