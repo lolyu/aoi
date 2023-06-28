@@ -123,16 +123,17 @@ const sai_bfd_api_t redis_bfd_api = {
 
 ### create
 ```cpp
+    sai_attribute_t attr;
+    vector<sai_attribute_t> attrs;
+
     attr.id = SAI_BFD_SESSION_ATTR_TYPE;
     attr.value.s32 = bfd_session_type;
     attrs.emplace_back(attr);
-    fvVector.emplace_back("type", session_type_lookup.at(bfd_session_type));
 
     uint32_t local_discriminator = bfd_gen_id();
     attr.id = SAI_BFD_SESSION_ATTR_LOCAL_DISCRIMINATOR;
     attr.value.u32 = local_discriminator;
     attrs.emplace_back(attr);
-    fvVector.emplace_back("local_discriminator", to_string(local_discriminator));
 
     ...
 
@@ -141,6 +142,20 @@ const sai_bfd_api_t redis_bfd_api = {
     sai_object_id_t bfd_session_id = SAI_NULL_OBJECT_ID;
     sai_status_t status = sai_bfd_api->create_bfd_session(&bfd_session_id, gSwitchId, (uint32_t)attrs.size(), attrs.data());
 ```
+* function chain
+    * `sai_bfd_api->create_bfd_session()`
+    * `redis_sai->create((sai_object_type_t)SAI_OBJECT_TYPE_BFD_SESSION, object_id, switch_id, attr_count, attr_list)`
+    * `context->m_meta->create(objectType, objectId, switchId, attr_count, attr_list)`
+
+* key data structures:
+    * `sai_object_type_t`: enum to list out all supported `SAI` object types
+    * `sai_attribute_t`
+        * `id`: `sai_attr_id_t`
+            * points to the `SAI` object attribute enum
+        * `value`: `sai_attribute_value_t`
+            * attribute value
+    * `sai_attribute_value_t`: union to store all possible attribute types
+
 
 
 ## Notification handle
