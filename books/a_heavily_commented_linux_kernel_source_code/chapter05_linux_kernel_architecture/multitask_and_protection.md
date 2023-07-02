@@ -28,9 +28,10 @@
 
 
 ### other tasks
-![image](https://github.com/lolyu/aoi/assets/35479537/576d83df-8117-431f-982f-d5985c647619)
+![image](https://github.com/lolyu/aoi/assets/35479537/5f581e37-2021-4b64-8b2c-04415505062a)
+
 * for other tasks(pid >= 2), its parent task is always `init`(task 1).
-* When the code of task 2 (init()) calls the execve() system call to start loading and executing the shell program, the system call releases the page directory and page table entries and corresponding memory pages copied from task 1. Then re-create the relevant page directory and page table entries for the new executor shell
+* When the code of task 2 (init()) calls the `execve()` system call to start loading and executing the shell program, the system call releases the page directory and page table entries and corresponding memory pages copied from task 1. Then re-create the relevant page directory and page table entries for the new executor shell
 
 
 ### memory dynamic allocation for user application
