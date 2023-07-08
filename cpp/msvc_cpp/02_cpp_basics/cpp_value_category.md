@@ -13,3 +13,24 @@
     * `xvalue`: has an address no longer accessible by the program but can be used to initialize an `rvalue` reference
         * `xvalue` stands for expiring value, refers to an object, usually nears its lifetime
     * `prvalue`: no address that is accessible by the program, like literal
+
+## lvalue vs rvalue
+* `lvalue`: has an address, could be used with `&` operator
+* `rvalue`: has no address, could not be used with `&` operator
+
+```cpp
+int a = 100;
+int *ap = &a;
+```
+* `a` is a `lvalue`, it has an address, could 
+* `100` is a `rvalue`
+
+### lvalue reference vs rvalue reference
+* lvalue reference: reference to a `lvalue`
+* rvalue reference: reference to a `rvalue`
+
+```cpp
+int a = 5;
+int &ref_a = a;   // lvalue reference
+int &&ref_right = 5;   // rvalue reference
+```
