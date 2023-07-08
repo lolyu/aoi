@@ -22,12 +22,15 @@
 int a = 100;
 int *ap = &a;
 ```
-* `a` is a `lvalue`, it has an address, could 
+* `a` is a `lvalue`, it has an address 
 * `100` is a `rvalue`
 
 ### lvalue reference vs rvalue reference
 * lvalue reference: reference to a `lvalue`
+    * lvalue references can be used to alias an existing object
 * rvalue reference: reference to a `rvalue`
+    * rvalue references can be used to extend the lifetime of temporary objects
+    * when rvalue reference is used in an expression, it is a lvalue
 
 ```cpp
 int a = 5;
