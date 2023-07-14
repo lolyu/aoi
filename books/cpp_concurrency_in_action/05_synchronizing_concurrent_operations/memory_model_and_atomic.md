@@ -24,6 +24,7 @@
 
 ### std::atomic_flag
 * `std::atomic_flag` is the simplest standard atomic type, which represents a boolean flag.
+    * `std::atomic_flag` is more like a conditional variable.
 * `std::atomic_flag` is guaranteed to be lock-free.
 * `std::atomic_flag` must be initialized with `ATOMIC_FLAG_INIT` explicitly.
 
@@ -40,6 +41,7 @@
 
     * why does `spurious failure` matter?
         * `spurious failure` is a false alarm, it means the atomic variable is not actually set
+        * so user should keep retrying
 
 
 ```cpp
