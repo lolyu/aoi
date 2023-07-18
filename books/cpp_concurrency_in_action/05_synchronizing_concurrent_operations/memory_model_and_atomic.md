@@ -22,6 +22,9 @@
 * the assignment operators of the standard atomic types return value instead of reference.
     * if a reference is returned, the following code might have a chance to load the value, potentially getting the result of a modification by another thread.
 
+![image](https://github.com/lolyu/aoi/assets/35479537/38759511-8af1-4bfd-87ae-246018e04b85)
+
+
 ### std::atomic_flag
 * `std::atomic_flag` is the simplest standard atomic type, which represents a boolean flag.
     * `std::atomic_flag` is more like a conditional variable.
