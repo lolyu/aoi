@@ -103,5 +103,16 @@ std::atomic<Singleton *> Singleton::cached_object;
 
 * `compare_exchange_strong(T &expected, T desired, std::memory_order success, std::memory_order failure)`
 
+## atomic free functions
+|member function|free function|
+|-|-|
+|`p.load`|`atomic_load`, `atomic_load_explicit`|
+|`p.store`|`atomic_store`, `atomic_store_explicit`|
+
+## synchronizing operations and enforcing ordering
+* relationships:
+    * `synchronizes-with`
+    * `happens-before`
+
 ## references
 * https://devblogs.microsoft.com/oldnewthing/20180330-00/?p=98395
