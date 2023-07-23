@@ -161,18 +161,24 @@ public:
 
 ### constexpr
 * `const` keyword declares an object as constant, which implies that once initialized, the value of that object won't change.
-* `constexpr` keyword instructs the compiler that the object is qualified to be used in an `constant expression`.
+* `constexpr` keyword instructs the compiler that the object is qualified to be used in a `constant expression`.
     * making variables `constexpr` ensures that those variables have values known at compile-time, and thus are eligible for constant folding when they are used in expressions(even in non-const expressions).
+* best practices:
+    * Any variable that should not be modifiable after initialization and whose initializer is known at compile-time should be declared as `constexpr`.
+    * Any variable that should not be modifiable after initialization and whose initializer is not known at compile-time should be declared as `const`.
+
 #### constant expression
 * a `constant expression` is an expression that can be evaluated by the compiler at compile-time.
     * all the values in the `constant expression` must be known at compile-time(compile-time constant)
     * `constant expression` can be used in places that require compile-time evaluation: template parameters and array-size specifiers
+    * when the compiler encounters a `constant expression`, it may evaluate the expression at compile-time, and then replace the constant expression with the result of the evaluation.
 * an object like `N` can be used in `constant expression` when:
     * declared with `constexpr`
     * compile-time const
     * integral of enumeration type
-    * 
 
+* compile-time constant: constant whose value is known at compile-time.
+    * literals are compile-time constant
 * a const variable can be either:
     * compile-time const
         * a const variable is a compile-time const if its initializer is a constant expression
