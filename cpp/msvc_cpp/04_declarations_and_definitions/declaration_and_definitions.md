@@ -110,5 +110,132 @@ public:
 ### static member
 
 
+## other specifiers
+### auto
+* `auto` commands the compiler to use the initialization expression of a declared variable to deduce its type.
+* **NOTE**: `auto` drops reference, `const` qualifiers, and `volatile` qualifiers.
+```cpp
+    const int i = 0;
+    const int &ir = i;
+    auto j = ir; // j is simply an int
+
+    j = 20;
+```
+
+#### auto in range for
+```cpp
+    std::vector<int> vi{0, 1, 2, 3, 4};
+    for (auto i : vi)
+    {
+        ;
+    }
+
+    for (auto &i : vi)
+    {
+        ;
+    }
+
+    for (const auto &i : vi)
+    {
+        ;
+    }
+```
+
+### const
+
+#### const pointer vs pointer to const
+* const pointer: pointer itself is a const
+    * `int *const i`
+* pointer to const: pointer that points to a const
+    * `const int *i`
+
+#### const member functions
+* const member function is those member functions that don't modify the object
+    * const member function cannot modify any non-static data member
+    * call any member functions that aren't constant
+* `const` keyword is required in both the declaration and the definition
+
+#### difference between C/C++
+* in `C`, the constant values default to external linkage
+* in `C++`, the constant values default to internal linkage
+
+### constexpr
+* `const` keyword declares an object as constant, which implies that once initialized, the value of that object won't change.
+* `constexpr` keyword instructs the compiler that the object is qualified to be used in an `constant expression`.
+    * making variables `constexpr` ensures that those variables have values known at compile-time, and thus are eligible for constant folding when they are used in expressions(even in non-const expressions).
+#### constant expression
+* a `constant expression` is an expression that can be evaluated by the compiler at compile-time.
+    * all the values in the `constant expression` must be known at compile-time(compile-time constant)
+    * `constant expression` can be used in places that require compile-time evaluation: template parameters and array-size specifiers
+* an object like `N` can be used in `constant expression` when:
+    * declared with `constexpr`
+    * compile-time const
+    * integral of enumeration type
+    * 
+
+* a const variable can be either:
+    * compile-time const
+        * a const variable is a compile-time const if its initializer is a constant expression
+    * runtime const
+        * a const variable is a compile-time const if its initializer is a non-constant expression
+
+```cpp
+int f()
+{
+    return random();
+}
+
+template <int N>
+struct fixed_size_list
+{
+    fixed_size_list() = default;
+    ~fixed_size_list() = default;
+};
+
+enum days
+{
+    zero,
+    one,
+    two,
+};
+
+int main()
+{
+    // i is a compile-time const
+    const int i = 0;
+    // j is a compile-time const
+    const int j = 10;
+    // sum is a compile-time const
+    const int sum = i + j;
+    // r is a runtime const
+    const int r = f();
+
+    // legal
+    constexpr int sum0 = i + j;
+    // illegal, f() could be evaluated at compile-time
+    // constexpr int r0 = f();
+
+    int ii = 10;
+    int nums0[r];
+    int nums1[ii];
+    int nums2[sum0];
+
+    // illegal, r could not be used in a constant expression
+    // auto fsl0 = fixed_size_list<r>();
+    // illegal, runtime const could not be used in constant expression
+    // auto fsl1 = fixed_size_list<ii>();
+    // legal, sum0 is a constexpr, could be used in constant expression
+    auto fsl2 = fixed_size_list<sum0>();
+    // legal, enum type value could be used in constant expression
+    auto fsl3 = fixed_size_list<days::two>();
+
+    return 0;
+}
+```
+
+### extern
+
+
+
 ## references
 * https://stackoverflow.com/questions/1410563/what-is-the-difference-between-a-definition-and-a-declaration
