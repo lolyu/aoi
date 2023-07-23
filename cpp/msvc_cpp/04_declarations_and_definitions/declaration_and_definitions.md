@@ -239,3 +239,5 @@ int main()
 
 ## references
 * https://stackoverflow.com/questions/1410563/what-is-the-difference-between-a-definition-and-a-declaration
+* https://stackoverflow.com/questions/14116003/whats-the-difference-between-constexpr-and-const
+* https://www.learncpp.com/cpp-tutorial/compile-time-constants-constant-expressions-and-constexpr/
