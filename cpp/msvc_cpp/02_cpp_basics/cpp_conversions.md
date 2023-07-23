@@ -60,6 +60,7 @@
     * only if:
         * the base class is accessible
         * the conversion is unambiguous
+
 ![image](https://github.com/lolyu/aoi/assets/35479537/2cfcbc09-6f29-46e8-b937-c5bcc234ccf1)
 
 ### void pointer conversion
