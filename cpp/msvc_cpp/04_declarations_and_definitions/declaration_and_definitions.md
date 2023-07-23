@@ -239,6 +239,23 @@ int main()
 }
 ```
 
+#### constexpr function
+* a `constexpr` function is a function whose return value could be evaluated at compile-time if the consuming code requires:
+    * used to initialize a `constexpr` variable
+    * used as a non-type template argument
+* a `constexpr` function must accept and return only literals.
+* when its arguments are `constexpr` values, the `constexpr` function produces a compile-time constant
+* when its arguments are non-`constexpr` values, the `constexpr` function produce a runtime return
+* when the consuming code doesn't require, the `constexpr` function produce a runtime return
+
+```cpp
+template <typename T, int N>
+constexpr int length(const T (&nums)[N])
+{
+    return N;
+}
+```
+
 ### extern
 
 
