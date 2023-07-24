@@ -257,6 +257,12 @@ constexpr int length(const T (&nums)[N])
 ```
 
 ### extern
+* `extern` could be applied to a global variable/function, or template declaration
+    * `extern` applied to a non-`const` global variable declaration: the global variable is defined in another translation unit
+        * the `extern` must be added to every declaration except the definition
+    * `extern` applied to a `const` global variable declaration: the global `const` variable has external linkage
+        * the `extern` keyword must be applied to all declarations in all translation unit
+    * `extern` applied to a template declaration: the template has already been instantiated somewhere else, instructs the compiler to reuse this instantiation.
 
 
 
