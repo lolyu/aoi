@@ -32,6 +32,11 @@ T t2 = new T;
 
 ## value initialization
 * value initialization: happens when the object is constructed with an empty initializer.
+* the value initialization does the following
+    * for classes with at least one public constructor, the default constructor is called
+    * for non-union classes with no declared constructor, the object is zero-initialized, and the default constructor is called
+    * for arrays, element is value-initialized
+    * for other cases, the variable is zero-initialized
 
 ```
 T t = t();
