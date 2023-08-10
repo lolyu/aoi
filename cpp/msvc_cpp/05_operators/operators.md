@@ -29,7 +29,7 @@ int main()
 }
 ```
 
-## `&`
+## address-of `&`
 * `&` is the address-of operator
     * it returns the address of its operand, the operand can be a function designator or an lvalue
 
@@ -66,6 +66,16 @@ int main()
     return 0;
 }
 ```
+
+## assignment `=`
+* two kinds of assignment operators:
+    * simple assignment
+    * compound assignment
+        * `+=`
+        * `-=`
+        * `*=`
+        * `/=`
+
 
 ## references
 * https://stackoverflow.com/questions/670734/pointer-to-class-data-member
