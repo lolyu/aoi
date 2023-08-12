@@ -102,8 +102,13 @@ int main()
 
 ## `new` and `delete`
 * `new` allocates dynamic memory from heap for the object type specified
+    * allocate dynamic memory for the object
+    * initialize the object - call the corresponding constructor
+    * return a pointer to the object
 * `delete` frees the dynamic memory allocated by `new`
-* **NOTE**: built-int `new` and `delete` are thread-safe
+    * call the object destructor
+    * free the allocated dynamic memory
+
 ```cpp
 void* operator new (std::size_t size);
 void* operator new (std::size_t size, const std::nothrow_t& nothrow_value) noexcept;
@@ -113,13 +118,33 @@ void operator delete (void* ptr, const std::nothrow_t& nothrow_constant) noexcep
 void operator delete (void* ptr, void* voidptr2) noexcept;
 void operator delete (void* ptr, std::size_t size) noexcept;
 void operator delete (void* ptr, std::size_t size, const std::nothrow_t& nothrow_constant) noexcept;
-
 ```
+
+* **NOTE**: built-int `new` and `delete` are thread-safe
+* `delete` is used to free the dynamic memory allocated by `new`
+    * **NOTE**:
+        * `delete` a pointer to an object not allocated by `new` leads to undefined behavior 
+        * `delete` a pointer twice leads to undefined behavior
+        * `delete` a `nullptr` does nothing and is harmless
+```cpp
+D *d = new D(100);
+delete d;
+// delete d; // core dump
+d = nullptr;
+delete d; // harmless
+```
+
+
+
+* when the compiler encounters the `new` operator to allocate an object of type `T`:
+    * if user-defined `new` operator is present, issues a call to `T::operator new(sizeof(T))`
+    * else, issues a call to `::operator new(sizeof(T))`
+
+
 ### `new` allocation failure
 * `new` allocation failure will throw a `std::bad_alloc` exception
 * `new(std::nothrow)` will suppress throwing `std::bad_alloc` exception and return `nullptr` in such case
-* `delete` is used to free the dynamic memory allocated by `new`
-    * **NOTE**: `delete` a pointer twice leads to undefined behavior
+
 ```cpp
 #include <iostream>
 #include <new>
