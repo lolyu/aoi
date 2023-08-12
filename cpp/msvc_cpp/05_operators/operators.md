@@ -76,6 +76,77 @@ int main()
         * `*=`
         * `/=`
 
+## cast operator `()`
+
+### class custom cast operator
+```cpp
+class D
+{
+public:
+    D(int n = 10) : n(n) {}
+
+    operator int() { return n; }
+
+private:
+    int n;
+};
+
+int main()
+{
+    D d;
+    int n = d;
+
+    return 0;
+}
+```
+
+## `new` and `delete`
+* `new` allocates dynamic memory from heap for the object type specified
+* `delete` frees the dynamic memory allocated by `new`
+* **NOTE**: built-int `new` and `delete` are thread-safe
+```cpp
+void* operator new (std::size_t size);
+void* operator new (std::size_t size, const std::nothrow_t& nothrow_value) noexcept;
+void* operator new (std::size_t size, void* ptr) noexcept;                                                // placement new
+void operator delete (void* ptr) noexcept;
+void operator delete (void* ptr, const std::nothrow_t& nothrow_constant) noexcept;
+void operator delete (void* ptr, void* voidptr2) noexcept;
+void operator delete (void* ptr, std::size_t size) noexcept;
+void operator delete (void* ptr, std::size_t size, const std::nothrow_t& nothrow_constant) noexcept;
+
+```
+### `new` allocation failure
+* `new` allocation failure will throw a `std::bad_alloc` exception
+* `new(std::nothrow)` will suppress throwing `std::bad_alloc` exception and return `nullptr` in such case
+* `delete` is used to free the dynamic memory allocated by `new`
+    * **NOTE**: `delete` a pointer twice leads to undefined behavior
+```cpp
+#include <iostream>
+#include <new>
+
+using namespace std;
+#define BIG_NUMBER 10000000000000LL
+
+int main()
+{
+    try
+    {
+        int *ptr0 = new int[BIG_NUMBER];
+    }
+    catch (const std::bad_alloc &e)
+    {
+        cout << "Allocation failure" << endl;
+    }
+
+    int *ptr1 = new (std::nothrow) int[BIG_NUMBER];
+    if (ptr1 == nullptr)
+    {
+        cout << "Allocation failure" << endl;
+    }
+}
+```
 
 ## references
 * https://stackoverflow.com/questions/670734/pointer-to-class-data-member
+* https://cplusplus.com/reference/new/operator%20new/
+* https://cplusplus.com/reference/new/operator%20delete/
