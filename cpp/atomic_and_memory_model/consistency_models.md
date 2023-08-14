@@ -20,6 +20,7 @@
 
 ### sequential consistency
 * `sequential consistency`
+    * **definition**: the result of any execution is the same as if the operations of all processes were executed in some sequential order, and the operations of each individual process appear in this sequence in the order specified by its program.
     * the execution order in the same processor is the same as the program order
     * the execution order of a program on different processors is undefined
 * the total order of operations is called `memory order`(or total order), in `sequential consistency`, `memory order` **respects** each core's `program order`.
@@ -27,6 +28,8 @@
     * `op1 <p op2` means that `op1` precedes `op2` in the processor's program order
     * `op1 <m op2` means that `op1` precedes `op2` in the memory order
 * **NOTE**: in order to preserve sequential order of execution between processors, all operations must appear to execute atomically.
+
+### causal consistency
 
 ## references
 * https://course.ece.cmu.edu/~ece847c/S15/lib/exe/fetch.php?media=part2_2_sorin12.pdf
