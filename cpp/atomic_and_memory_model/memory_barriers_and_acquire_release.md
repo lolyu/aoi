@@ -44,6 +44,7 @@ isPublished = true;
     * also called `read-acquire` or `load-acquire`
     * prevents memory reordering of `read-acquire` with any read/write operations that follow it in the program order
     * `read-acquire` is a combination of `LoadLoad` and `LoadStore`
+
 ![image](https://github.com/lolyu/aoi/assets/35479537/3859cf42-0a62-4caf-a613-138667fedb47)
 
 
