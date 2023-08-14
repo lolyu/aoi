@@ -47,7 +47,6 @@ isPublished = true;
 
 ![image](https://github.com/lolyu/aoi/assets/35479537/3859cf42-0a62-4caf-a613-138667fedb47)
 
-
 * `release semantics`:
     * applies to writes
     * also called `write-release` or `store-release`
@@ -55,7 +54,6 @@ isPublished = true;
     * prevents memory reordering of `write-release` with any read/write operations that precede it in the program order
 
 ![image](https://github.com/lolyu/aoi/assets/35479537/8032ba5f-12a6-41bf-b425-a30512e5c773)
-
 
 ## references
 * https://preshing.com/20120710/memory-barriers-are-like-source-control-operations/
