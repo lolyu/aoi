@@ -4,3 +4,4 @@
 * https://www.kernel.org/doc/Documentation/memory-barriers.txt
 * https://preshing.com/20120913/acquire-and-release-semantics/
 * https://developer.arm.com/documentation/102336/0100/Load-Acquire-and-Store-Release-instructions
+* https://www.cs.rochester.edu/u/sandhya/csc258/seminars/2015/java_c++_memory_models.pdf
