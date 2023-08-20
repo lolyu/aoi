@@ -171,6 +171,84 @@ int main()
 }
 ```
 
+## pointer-to-member operators
+* `.*` and `->*`
+    * the pointer-to-member operators return the value of the specific class member(the right operand) for the object specified(the left operand).
+        * **NOTE**: the pointer-to-member operator returns the member value instead of the member address
+    * the left operand must be of a class type that is accessible to the member pointed by the right operand.
+
+
+```cpp
+#include <iostream>
+
+class BaseClass
+{
+public:
+    BaseClass() = default;
+    void func1() { std::cout << "from BaseClass" << std::endl; }
+    int data = 0;
+};
+
+class DerivedClass : public BaseClass
+{
+public:
+    DerivedClass() = default;
+    void func2() { std::cout << "from DerivedClass" << std::endl; }
+};
+
+void (BaseClass::*pmf1)() = &BaseClass::func1;
+int BaseClass::*pmd1 = &BaseClass::data;
+void (DerivedClass::*pmf2)() = &DerivedClass::func2;
+int DerivedClass::*pmd2 = &DerivedClass::data;
+
+int main()
+{
+    BaseClass b;
+    DerivedClass d;
+
+    (b.*pmf1)();
+    std::cout << "Base member data " << (b.*pmd1) << std::endl;
+    (d.*pmf1)();
+    (d.*pmf2)();
+    std::cout << "Derived member data " << (d.*pmd1) << std::endl;
+    std::cout << "Derived member data " << (d.*pmd2) << std::endl;
+    return 0;
+}
+
+```
+
+## prefix and postfix ++/--
+* prefix increment/decrement modifies the value before the value evaluation
+    * `++x` equals to `x += 1`
+    * `--x` equals to `x -= 1`
+    * the result is the operand
+* postfix increment/decrement does the value evaluation before modifying the value
+    * the result is a prvalue copy of the original value of the operand
+
+```cpp
+A &operator++(A&); // prefix overload
+A operator++(A&, int); // suffix overload
+```
+
+## relational operators
+* `>`, `<`, `>=`, `<=`
+
+### comparing pointers
+* two pointers can be compared if:
+    1. both point to the same type
+    2. one pointer points to `0`
+    3. one pointer is of `void *`
+        * the other is implicitly converted to `void *` to do the comparison
+    4. one type is a class type derived from another type
+    5. at least one of the pointers is explicitly converted to `void *`
+    6. both point to the same array or to the element one beyond the end of the array
+
+* for nonstatic class member pointers:
+    * for union, pointers to different data members compare equal
+    * for non-union, and two members with the same access specifier(`public`, `protected`, and `private`), the one declared last is greater
+    * for non-union, and two members with different access specifier, the result is undefined
+
+
 ## references
 * https://stackoverflow.com/questions/670734/pointer-to-class-data-member
 * https://cplusplus.com/reference/new/operator%20new/
