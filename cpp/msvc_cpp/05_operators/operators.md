@@ -246,8 +246,139 @@ A operator++(A&, int); // suffix overload
 * for nonstatic class member pointers:
     * for union, pointers to different data members compare equal
     * for non-union, and two members with the same access specifier(`public`, `protected`, and `private`), the one declared last is greater
-    * for non-union, and two members with different access specifier, the result is undefined
+    * for non-union, and two members with different access specifiers, the result is undefined
 
+## sizeof
+* `sizeof` returns the size of its operand with respect to the size of type `char`
+* `sizeof` cannot be used with dynamically allocated arrays.
+* **NOTE**: if an unsized array is the last element of a structure, the `sizeof` operator returns the size of the structure without the array.
+
+```cpp
+#include <iostream>
+#include <cstring>
+
+struct Demo
+{
+    int i;
+    double d;
+    char data[];
+};
+
+int main()
+{
+    char *data = new char[40];
+    std::cout << sizeof(data) << std::endl;
+    std::cout << sizeof(Demo) << std::endl;
+    std::cout << alignof(Demo::i) << std::endl;
+    std::cout << alignof(Demo::d) << std::endl;
+    Demo *d = new (data) Demo();
+    d->i = 10;
+    d->d = 10.10;
+    strcpy(d->data, "helloworld");
+    std::cout << sizeof(d) << std::endl;
+};
+```
+
+## subscription operator []
+* for a subscript operation: `A[B]`, it equals to `*(A + B)`
+    * so `A[B]` equals to `B[A]`
+
+```cpp
+#include <iostream>
+#include <cstring>
+
+struct Demo
+{
+    int i;
+    double d;
+    char data[];
+};
+
+int main()
+{
+    char *data = new char[40];
+    std::cout << sizeof(data) << std::endl;
+    std::cout << sizeof(Demo) << std::endl;
+    std::cout << alignof(Demo::i) << std::endl;
+    std::cout << alignof(Demo::d) << std::endl;
+    Demo *d = new (data) Demo();
+    d->i = 10;
+    d->d = 10.10;
+    strcpy(d->data, "helloworld");
+    std::cout << sizeof(d) << std::endl;
+};
+```
+
+## typeid
+* `typeid` returns the actual derived type of the object referred to by a pointer or reference.
+    * together with `dynamic_cast`, are provided for `RTTI`(runtime type identification) support in C++
+* `typeid(expr)` returns an lvalue of type `const std::type_info` that represents the type of expression `expr`
+* If `expr` is a reference or a dereferenced pointer to a polymorphic class, `typeid` will return a `type_info` object that represents the object that the reference or pointer denotes at run time.
+* If `expr` is a reference or a dereferenced pointer to a non-polymorphic class, `typeid` will return a `type_info` object that represents the object that the reference or dereferenced pointer denotes at compile time(no runtime info).
+* If `expr` is a pointer but not dereferenced, `typeid` will return a `type_info` object that represents the pointer or reference type
+
+```cpp
+#include <iostream>
+#include <typeinfo>
+
+// ./a.out |  c++filt -t
+
+class Base0
+{
+public:
+    Base0() = default;
+};
+
+class Derived0 : public Base0
+{
+public:
+    Derived0() = default;
+};
+
+class Base1
+{
+public:
+    Base1() = default;
+    virtual void func() { std::cout << "Base1" << std::endl; }
+};
+
+class Derived1 : public Base1
+{
+public:
+    Derived1() = default;
+    virtual void func() { std::cout << "Derived1" << std::endl; }
+};
+
+int main()
+{
+    Base0 *p0 = new Base0;
+    Base0 *p1 = new Derived0;
+    Base0 &b0 = *p1;
+    Base1 *p2 = new Base1;
+    Base1 *p3 = new Derived1;
+    Base1 &b1 = *p3;
+
+    std::cout << typeid(p0).name() << std::endl; // Base0*
+    std::cout << typeid(p1).name() << std::endl; // Base0*
+    std::cout << typeid(p2).name() << std::endl; // Base1*
+    std::cout << typeid(p3).name() << std::endl; // Base1
+
+    std::cout << typeid(*p0).name() << std::endl; // Base0
+    std::cout << typeid(*p1).name() << std::endl; // Base0
+    std::cout << typeid(*p2).name() << std::endl; // Base1
+    std::cout << typeid(*p3).name() << std::endl; // Derived1
+
+    std::cout << typeid(b0).name() << std::endl; // Base0
+    std::cout << typeid(b1).name() << std::endl; // Derived1
+
+    return 0;
+}
+```
+
+## unary +/-
+* `+A` returns the value of `A`, but `A` is promoted following the rule of integral promotion
+    * if `A` is of `char`, `+A` returns an int
+* `-A` returns the negative of its operand also with integral promotion
 
 ## references
 * https://stackoverflow.com/questions/670734/pointer-to-class-data-member
