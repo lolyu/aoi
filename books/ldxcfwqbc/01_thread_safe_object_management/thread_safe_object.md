@@ -5,6 +5,11 @@
     * the object is not fully-initialized, sharing `this` in the constructor could enable other threads to access this partially-initialized object, which might cause unexpected results.
  
 ## thread-safe destructor
+* in OOP, three relationships between objects:
+    * association - has a
+    * aggregation - has a + part of
+    * composition - has a + part of + ownership
+        * safe, because own the lifetime of the part
 * `dangling pointer`: a pointer pointing to a memory location that has been deleted (or freed)
 * `wild pointer`: a pointer that has not been initialized to anything (not even `NULL` or `nullptr`)
 * if one thread does the deallocation of an object, and another thread is using this object, which might lead to unexpected result:
@@ -53,3 +58,5 @@ void Observable::notify()
     }
 }
 ```
+
+## use smart pointers
