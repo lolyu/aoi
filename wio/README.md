@@ -4,3 +4,4 @@
 
 
 ## references
+* https://wiki.seeedstudio.com/Wio-Terminal-Getting-Started/
