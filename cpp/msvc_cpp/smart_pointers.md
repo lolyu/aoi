@@ -254,6 +254,99 @@ int main()
 * if the caller can guarantee that the `shared_ptr` is always in-scope during the callee execution time, pass by reference, by raw pointer or by managed object.
 
 ## weak_ptr
+* `std::weak_ptr` holds a non-owning reference to an object that is managed by `std::shared_ptr`
+    * `std::weak_ptr` must be converted to `std::shared_ptr` to access the managed object
+
+### member functions
+* `weak_ptr<T>::reset`: release the ownership of the managed object
+* `weak_ptr<T>::swap(weak_ptr<T> &r )`: exchanges the stored pointer values and ownership of `*this` and `r`
+* `weak_ptr<T>::use_count`: returns the numbers of `shared_ptr` instances referring to the same managed object
+* `weak_ptr<T>::lock()`: creates a new `shared_ptr` that shares the ownership of the managed object
+    * if there is no managed object, the returned `shared_ptr` is empty
+* `weak_ptr<T>::expired()`: same as `use_count() == 0`, returns `true` is the managed object has already been deleted
+
+### use `weak_ptr` to break cyclic dependency
+```cpp
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+class Controller
+{
+    public:
+    int num;
+    string status;
+    vector<weak_ptr<Controller>> others;
+    
+    explicit Controller(int i) : num(i), status("on")
+    {
+        cout << "Creating controller " << num << endl;
+    }
+
+    ~Controller()
+    {
+        cout << "Destroying controller " << num << endl; 
+    }
+
+    void check_status() const
+    {
+        for_each(others.begin(), others.end(), [](weak_ptr<Controller> wp)
+        {
+            auto sp = wp.lock();
+            if (sp)
+            {
+                cout << "status of " << sp->num << " = " << sp->status << endl;
+            }
+            else
+            {
+                cout << "null object" << endl;
+            }
+        });
+    }
+};
+
+void run_test()
+{
+    vector<shared_ptr<Controller>> v{
+        make_shared<Controller>(0),
+        make_shared<Controller>(1),
+        make_shared<Controller>(2),
+        make_shared<Controller>(3),
+        make_shared<Controller>(4),
+        make_shared<Controller>(5),
+        make_shared<Controller>(6),
+        make_shared<Controller>(7),
+    };
+
+    for (auto &sp : v)
+    {
+        for_each(v.begin(), v.end(), [&](shared_ptr<Controller> &sp_other){
+            if (sp->num != sp_other->num)
+            {
+                sp->others.push_back(weak_ptr<Controller>(sp_other));
+                cout << "push back to controller " << sp->num << ": " << sp_other->num << endl;
+            }
+        });
+    }
+
+    for (auto &sp : v)
+    {
+        cout << "controller " << sp->num << " use count = " << sp.use_count() << endl;
+        sp->check_status();
+    }
+}
+
+int main()
+{
+    run_test();
+    return 0;
+}
+
+```
 
 ## references
 * https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique
