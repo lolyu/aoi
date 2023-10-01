@@ -112,8 +112,150 @@ function(std::make_unique<A>(), std::make_unique<B>());                         
     * the control block
     * the object block
 
+![image](https://github.com/lolyu/aoi/assets/35479537/1720ecd2-9cb4-4058-9d95-552c016221ec)
+
+### member function
+* `shared_ptr<T, delete>::reset(T *t)`: replace the managed object with `*t`
+    * if `*this` already owns an object and it is the last `std::shared_ptr` owning it, the object is destroyed
+* `shared_ptr<T, delete>::swap(shared_ptr<T, delte> t)`: exchanges the stored pointer values and the ownershios of `*this` and `t`
+* `shared_ptr<T, delete>::use_count`: returns the numbers of `shared_ptr` instances referring to the same managed object
+* `shared_ptr<T, delete>::unique`: checks if the managed object is only managed by current `shared_ptr` instance
+* `shared_ptr<T, delete>::owner_before`:
+
 ### shared_ptr vs make_shared
+
+```cpp
+std::shared_ptr<A> sp0 = std::shared_ptr<A>(new A());            // [1]
+std::shared_ptr<A> sp1 = std::make_shared<A>();                  // [2]
+```
+* as a `std::shared_ptr` manages two entities: the control block and the object being managed, `std::make_shared<A)()`([2]) performs a single heap-allocation for the space necessary for both the control block and the data.
+* `std::shared_ptr<A>(new A())` performs two heap allocations.
+
+### aliasing shared_ptr constructor
+```cpp
+std::shared_ptr(shared_ptr<A> &&a, element_type *ptr) noexcept;
+```
+* the aliasing constructor:
+    * shares the ownership information with `a`
+        * shares the reference count with `a`
+    * points to the object managed by `ptr`
+        * shares the data with `ptr`
+
+```cpp
+struct Bar { 
+    // some data that we want to point to
+};
+
+struct Foo {
+    Bar bar;
+};
+
+shared_ptr<Foo> f = make_shared<Foo>(some, args, here);
+shared_ptr<Bar> specific_data(f, &f->bar);
+
+// ref count of the object pointed to by f is 2
+f.reset();
+
+// the Foo still exists (ref cnt == 1)
+// so our Bar pointer is still valid, and we can use it for stuff
+some_func_that_takes_bar(specific_data);
+```
+
+### casting a shared_ptr
+* `dynamic_pointer_cast`
+* `static_pointer_cast`
+* `const_pointer_cast`
+```cpp
+#include <algorithm>
+#include <iostream>
+#include <memory>
+#include <vector>
+
+class Base
+{
+    public:
+        Base() { std::cout << "Base constructor" << std::endl; }
+        virtual ~Base() { std::cout << "Base destructor" << std::endl; }
+        virtual void show() const { std::cout << "Base show" << std::endl; }
+    private:
+};
+
+class Derived0: public Base
+{
+    public:
+        Derived0() { std::cout << "Derived0 constructor" << std::endl; }
+        ~Derived0() { std::cout << "Derived0 destructor" << std::endl; }
+        void show() const { std::cout << "Derived0 show" << std::endl; }
+};
+
+class Derived1: public Base
+{
+    public:
+        Derived1() { std::cout << "Derived1 constructor" << std::endl; }
+        ~Derived1() { std::cout << "Derived1 destructor" << std::endl; }
+        void show() const { std::cout << "Derived1 show" << std::endl; }
+};
+
+int main()
+{
+    using namespace std;
+    vector<shared_ptr<Base>> elements = {
+        make_shared<Derived0>(),
+        make_shared<Derived1>(),
+        make_shared<Derived1>(),
+        make_shared<Derived0>(),
+    };
+
+    cout << "All elements:" << endl;
+    for (auto &e : elements)
+    {
+        e->show();
+    }
+
+    vector<shared_ptr<Base>> elements0;
+    copy_if(elements.begin(), elements.end(), back_inserter(elements0), [](const shared_ptr<Base> &ptr) -> bool
+    {
+        return dynamic_pointer_cast<Derived0>(ptr).get() != nullptr;
+    });
+
+    cout << "Derived0:" << endl;
+    for (auto &e : elements0)
+    {
+        e->show();
+    }
+
+    vector<shared_ptr<Base>> elements1;
+    copy_if(elements.begin(), elements.end(), back_inserter(elements1), [](const shared_ptr<Base> &ptr) -> bool
+    {
+        return dynamic_pointer_cast<Derived1>(ptr).get() != nullptr;
+    });
+
+    cout << "Derived1:" << endl;
+    for (auto &e : elements1)
+    {
+        e->show();
+    }
+
+    return 0;
+}
+```
+
+### pass `shared_ptr` to a function
+* three ways:
+    * pass `shared_ptr` by value
+        * invokes the `shared_ptr` constructor, allocates the control block, and increments the reference count - **overhead**
+        * the callee becomes an owner, which could keep the managed object alive
+    * pass `shared_ptr` by reference(const reference)
+        * on construction, no reference increment
+        * the callee can become an owner if it creates a `shared_ptr` based on the reference
+    * pass `shared_ptr` by the managed object or pointer
+        * the callee could not share the ownership
+* if the callee has to share the ownership(the caller doesn't guarantee the `shared_ptr` is always in-scope during the callee execution time), pass `shared_ptr` by value
+* if the caller can guarantee that the `shared_ptr` is always in-scope during the callee execution time, pass by reference, by raw pointer or by managed object.
+
+## weak_ptr
 
 ## references
 * https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique
 * https://en.cppreference.com/w/cpp/memory/shared_ptr/make_shared
+* https://stackoverflow.com/questions/27109379/what-is-shared-ptrs-aliasing-constructor-for
