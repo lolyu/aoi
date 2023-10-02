@@ -8,6 +8,12 @@
 ## LCD screen
 * 320 * 240 pixels
 
+* rotation:
+    * 0: from east to west
+    * 1: from south to north
+    * 2: from west to east
+    * 3: from north to south
+
 
 ## coding basics
 ```cpp
