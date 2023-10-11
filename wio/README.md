@@ -1,5 +1,12 @@
 # wio terminal
 
+## dependencies
+* dependency lists:
+    * Seeed Arduino LCD
+    * Adafruite Zero DMA
+    * Seeed Arduino FS
+    * Seeed Arduino SFUD
+
 
 ## references
 * [wio terminal wiki](https://wiki.seeedstudio.com/Wio-Terminal-Getting-Started/)
