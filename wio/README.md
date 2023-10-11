@@ -6,6 +6,8 @@
     * Adafruite Zero DMA
     * Seeed Arduino FS
     * Seeed Arduino SFUD
+    * Seeed Arduino Linechart
+    * Seeed Arduino Histogram
 
 
 ## references
