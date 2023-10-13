@@ -345,7 +345,69 @@ int main()
     run_test();
     return 0;
 }
+```
 
+## other tools
+
+### enable_shared_from_this
+* `enable_shared_from_this` allows an object `t` that is currently managed by a `std::shared_ptr` named `pt` to safely generate additional `std::shared_ptr` instances that share the ownership of `t` with `pt`
+    * if `t` is not managed by a `shared_ptr`, `shared_ptr` constructor will throw a `std::bad_weak_ptr` exception.
+* two member functions:
+    * `shared_from_this`: returns a `shared_ptr` which shares the ownership of `*this`
+    * `weak_from_this`: returns a `weak_ptr` which shares the ownership of `*this`
+* `enable_shared_from_this` has a `weak_ptr` member, and it is initialized by the `shared_ptr` constructor, the `shared_ptr` constructor can detect if `T` is derived from `enable_shared_from_this`. If it is, the `shared_ptr` constructor will assign `*this` to the `weak_ptr` member.
+    * `shared_from_this` creates a `shared_ptr` out of the `weak_ptr` member
+    * `weak_from_this` returns the `weak_ptr` member
+
+```cpp
+#include <iostream>
+#include <memory>
+
+class Good : public std::enable_shared_from_this<Good>
+{
+public:
+    Good() = default;
+    ~Good() = default;
+
+    std::shared_ptr<Good> get_shared_self()
+    {
+        return shared_from_this();
+    }
+};
+
+class Bad
+{
+public:
+    Bad() = default;
+    ~Bad() = default;
+    std::shared_ptr<Bad> get_shared_self()
+    {
+        return std::shared_ptr<Bad>(this);
+    }
+};
+
+int main()
+{
+    auto good0 = std::make_shared<Good>();
+    auto good1 = good0->get_shared_self();
+
+    // double delete of bad
+    auto bad0 = std::make_shared<Bad>();
+    // auto bad1 = bad0->get_shared_self();
+
+    // shared_from_this must be called from an object managed by shared_ptr
+    Good good2;
+    try
+    {
+        auto good3 = good2.get_shared_self();
+    }
+    catch (const std::bad_weak_ptr &e)
+    {
+        std::cout << e.what() << std::endl;
+    }
+
+    return 0;
+}
 ```
 
 ## references
