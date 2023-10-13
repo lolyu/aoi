@@ -12,7 +12,7 @@
         * safe, because own the lifetime of the part
 * `dangling pointer`: a pointer pointing to a memory location that has been deleted (or freed)
 * `wild pointer`: a pointer that has not been initialized to anything (not even `NULL` or `nullptr`)
-* if one thread does the deallocation of an object, and another thread is using this object, which might lead to unexpected result:
+* if one thread does the deallocation of an object, and another thread is using this object, which might lead to an unexpected result:
     * in the following example, thread `A` is calling `Observable::notify()` and thread `B` is deallocating an `Observer` with `~Observer`
 
 ```cpp
