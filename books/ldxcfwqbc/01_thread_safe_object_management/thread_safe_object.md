@@ -60,3 +60,98 @@ void Observable::notify()
 ```
 
 ## use smart pointers
+
+```cpp
+#include <algorithm>
+#include <iostream>
+#include <vector>
+#include <memory>
+
+using namespace std;
+
+class Observable;
+class Observer;
+
+class Observer : public enable_shared_from_this<Observer>
+{
+public:
+    Observer() = delete;
+    Observer(shared_ptr<Observable> s, int i);
+    virtual ~Observer();
+    virtual void update();
+
+    int get_index() const { return i; }
+
+private:
+    int i;
+    shared_ptr<Observable> subject;
+};
+
+class Observable
+{
+public:
+    Observable() = default;
+    void register_observer(const weak_ptr<Observer> &x);
+    void notify();
+
+private:
+    vector<weak_ptr<Observer>> observers;
+};
+
+Observer::Observer(shared_ptr<Observable> s, int i) : subject(s), i(i)
+{
+    // NOTE: cannot register here, as the shared_ptr constructor is not
+    // called yet, so the weak pointer member in the enable_shared_from_this
+    // is not initialized yet, so weak_from_this() returns a weak_ptr that
+    // points to nullptr
+    // subject->register_observer(weak_from_this());
+}
+
+Observer::~Observer()
+{
+}
+
+void Observer::update()
+{
+    cout << "Update observer " << get_index() << endl;
+}
+
+void Observable::register_observer(const weak_ptr<Observer> &x)
+{
+    observers.push_back(x);
+}
+
+void Observable::notify()
+{
+    for (auto it = observers.begin(); it != observers.end();)
+    {
+        auto sp = it->lock();
+        if (sp)
+        {
+            sp->update();
+            ++it;
+        }
+        else
+        {
+            it = observers.erase(it);
+        }
+    }
+}
+
+int main()
+{
+    auto observable_sp = make_shared<Observable>();
+    auto obsv0 = make_shared<Observer>(observable_sp, 0);
+    observable_sp->register_observer(obsv0);
+    {
+        auto obsv1 = make_shared<Observer>(observable_sp, 1);
+        observable_sp->register_observer(obsv1);
+        cout << "First notify" << endl;
+        observable_sp->notify();
+    }
+    cout << "Second notify" << endl;
+    observable_sp->notify();
+
+    return 0;
+}
+```
