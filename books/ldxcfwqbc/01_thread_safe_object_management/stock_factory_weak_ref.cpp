@@ -40,20 +40,16 @@ public:
         stock = stock_ref.lock();
         if (!stock)
         {
-            // we can simply use `shared_from_this()` to replace `this
-            // as each Stock holds a deleter must reference the StockFactory
-            // to ensure the stock factory outlives the stock objects,
-            // use shared_ptr here
+            // pass shared_ptr to the deleter will keep the StockFactory alive
+            // use weak_ptr here
             std::weak_ptr<StockFactory> weak_self = weak_from_this();
             stock.reset(new Stock(key), [weak_self](Stock *stock){
-
                     std::shared_ptr<StockFactory> stock_factory = weak_self.lock();
                     if (stock_factory)
                     {
                         stock_factory->remove_stock(stock);
                     }
                     delete stock;
-
             });
             stock_ref = stock;
         }
