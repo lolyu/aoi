@@ -38,13 +38,30 @@ int *ap = &a;
     * lvalue references can be used to alias an existing object
 * rvalue reference: reference to a `rvalue`
     * rvalue references can be used to extend the lifetime of temporary objects
-    * when rvalue reference is used in an expression, it is a lvalue
+    * **when rvalue reference is used in an expression, it is a `lvalue`**
 
 ```cpp
 int a = 5;
 int &ref_a = a;   // lvalue reference
 int &&ref_right = 5;   // rvalue reference
 ```
+
+## function overloading
+* four types:
+    * pass by value
+        * `void foo(Widget w)`
+        * the callee has a local copy of the widget `w`
+    * pass by reference
+        * `void foo(Widget &w)`
+        * the callee and the caller share the same widget `w`
+        * the callee could modify the widget `w`
+    * pass by const reference
+        * `void foo(const Widget &w)`
+        * the callee is more like an observer, could use the widget `w` but not able to modify.
+    * pass by rvalue reference
+        * `void foo(Widget &&w)`
+        * the widget `w` is moved from the caller to the callee, and the callee is responsible for managing the widget object `w`.
+
 
 
 ## references
