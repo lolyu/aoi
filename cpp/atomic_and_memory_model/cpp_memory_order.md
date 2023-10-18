@@ -52,6 +52,16 @@
         * no side effect `X` to `M` that `A` happens-before `X` and `X` happens-before `B`
     * **inter-thread synchronization is all about defining what side effects become visible under what conditions**
 
+### summary
+* `happens-before`:
+    * `sequenced-before`
+    * `inter-thread happens-before`
+        * `synchronize-with`
+        * `dependency-ordered before`
+
+* simply put, two operations `A` and `B` and `A` happens-before` `B`, `A` side-effect is guaranteed to be visible to `B`.
+
+
 ## orderings
 ### relaxed ordering
 * `std::memory_order_relaxed` imposes no ordering and synchronization requirements, so `atomic` only guarantees atomicity and modification order consistency.
@@ -68,7 +78,7 @@
     * only atomicity is guaranteed
 
 #### counter example
-* **NOTE**: the thread execution **synchronizes with** the thread `join`, and the `join` is **sequenced before** the read of `counter` in the main thread ->
+* **NOTE**: [the thread complement **synchronizes with** the thread `join`](https://en.cppreference.com/w/cpp/thread/thread/join), and the `join` is **sequenced before** the read of `counter` in the main thread() ->
     * the thread execution **inter-thread happens before** the read of `counter` in the main thread
     * the thread execution **happens before** the read of `counter` in the main thread
     * so the thread execution generates **visible side-effects** on the read of `counter` in the main thread
@@ -248,7 +258,7 @@ int main()
 * `std::memory_order_seq_cst`:
     * a load with `std::memory_order_seq_cst` is a load acquire
     * a store with `std::memory_order_seq_cst` is a store release
-    * a RMW(read-modify-write`) with `std::memory_order_seq_cst` is both load acquire and store release
+    * a RMW(`read-modify-write`) with `std::memory_order_seq_cst` is both load acquire and store release
     * a total order exsits in which all threads observe all modifications in the same order
 
 #### sequential consistent ordering example
