@@ -1,6 +1,24 @@
 # C++ memory order
 * memory order specifies how memory accesses(read/write) are to be ordered around an atomic operation.
 
+## constants:
+* `memory_order_acquire`:
+    * pairs with a load
+    * implements the `acquire-semantic`
+        * no reads or writes in the current thread can be reordered before this load
+        * all writes in other threads that release the same atomic variable are visible in the current thread
+
+* `memory_order_release`:
+    * pairs with a store
+    * implements the `release-semantic`
+        * no reads or writes in the current thread can be reordered after this load
+        * 
+
+* `memory_order_consume`
+* `memory_order_relaxed`
+* `memory_order_acq_rel`
+* `memory_order_seq_cst`
+
 ## formal description
 
 * `sequenced-before`
@@ -194,9 +212,8 @@ int main()
         * an atomic store in thread `A` is with `std::memory_order_release`
         * an atomic load in thread `B` from the same variable is tagged `memory_order_consume`
         * the atomic load in thread `B` reads a value written by the store in thread `A` ~~or a value from later in the release sequence~~
-* what synchronization will be guaranteed in the release acquire ordering?
-    * all memory writes(including non-atomic and relaxed atomic) that happened-before the atomic store from the point of view of thread `A`, become **visible side-effects** within the operations in thread `B` into which the load operation carries dependency.
-    * in other words, if `A` store release on a variable `M`, the load acquire in `B` and reads afterward could only see the writes to `M` before the `A` store release.
+* what synchronization will be guaranteed in the release consume ordering?
+    * all memory writes(including non-atomic and relaxed atomic) that carry a dependency into the atomic store from the point of view of thread `A`, become **visible side-effects** within the operations in thread `B` into which the load operation `carries dependency`.
     * **`release consume` ordering limits what the load consume thread could see**
 * `std::memory_order_consume`:
     * a load operation with `std::memory_order_consume` means no reads/writes in the current thread dependent on the value loaded can be reordered before this load
