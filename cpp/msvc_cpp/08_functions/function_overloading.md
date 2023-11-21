@@ -52,7 +52,7 @@ void f(int i, int j = 100)
 f(100);
 ```
 
-## overloaded function matching
+## overloaded function resolution
 * the function matching is invoked based on the `best match` among the function declarations in the current scope to the arguments supplied, and **it is done in compile-time**.
 * the best match means either:
     * an exact match
