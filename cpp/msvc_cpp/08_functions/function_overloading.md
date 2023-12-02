@@ -144,3 +144,4 @@ f1(100);    // ambiguous, as conversion sequences with different user-defined co
 
 ## references
 * https://en.cppreference.com/w/cpp/language/overload_resolution
+* https://learn.microsoft.com/en-us/cpp/cpp/function-overloading?view=msvc-170
