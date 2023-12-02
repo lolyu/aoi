@@ -88,13 +88,58 @@ f(100);
 ### argument conversions
 * when the compiler tries to match arguments against the parameters in function declarations, conversion happens if no exact match can be found.
 * the compiler will choose the best implicit conversion sequence among all possible implicit conversion sequences.
+* conversion rules:
+    * `RULE#1`: only the conversion sequence with at most one user-defined conversion is allowed
+    * `RULE#2`: shorter conversion sequence wins
 * rank of implicit conversion sequences:
     * exact match
         * no conversion or trivial conversion
     * promotion
+        * integral promotion
+        * float to double conversions
     * standard conversion
+        * conversion from derived class pointer to a base class pointer is preferable than conversion to `void *` or `const void *`
+        * conversion from derived class pointer to a base class pointer is prefereable than conversion to a indirect base class pointer
+            * `A` <- `B` <- `C`
+            * conversion from pointer to `C` to pointer to `B` is better than conversion from pointer to `C` to pointer to `A`
     * user-defined conversion
+        * two conversion sequences with different user-defined conversions are considered equal(`RULE#2` doesn't apply to conversion sequence with user-defined conversions)
     * ellipsis
+
+* trivial conversions:
+
+|Argument type|Converted type|
+|-|-|
+|type-name|type-name&|
+|type-name&|type-name|
+|type-name[]|type-name*|
+|type-name(argument-list)|(*type-name)(argument-list)|
+|type-name|const type-name|
+|type-name|volatile type-name|
+|type-name*|const type-name*|
+|type-name*|volatile type-name*|
+
+```cpp
+class UD1
+{
+    public:
+    UD1(int i) {}
+};
+
+class UD2
+{
+    public:
+    UD2(long i) {}
+};
+
+void f1(UD1 a) {}
+void f1(UD2 a) {}
+
+f1(100);    // ambiguous, as conversion sequences with different user-defined conversions are considered equal
+```
+
+## overload restrictions
+### function overload with array
 
 
 ## references
