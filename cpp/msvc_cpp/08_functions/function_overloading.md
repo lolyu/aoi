@@ -83,6 +83,7 @@ f(100);
     * the compiler creates a set of candidate functions for each argument
         * candidate functions are functions in which the actual argument in that position can be converted to the type of the parameter.
     * for each argument, the best matching function set is selected from the candidate functions.
+        * for each argument, there could be multiple best-matching functions
     * and the best match function is selected in the intersection of all the best function sets.
         * if the intersection contains more than one function, an ambiguous error is generated
 
@@ -106,12 +107,16 @@ f2(10, 10)
 * rank of implicit conversion sequences:
     * exact match
         * no conversion or trivial conversion
+        * for trivial conversions, there are two exceptions:
+            * conversion to reference/pointer is prefereable than coversion to const reference/pointer
+            * regular function is preferable than template function
+                * **regular function > explicit specialization > template function**
     * promotion
         * integral promotion
         * float to double conversions
     * standard conversion
         * conversion from derived class pointer to a base class pointer is preferable than conversion to `void *` or `const void *`
-        * conversion from derived class pointer to a base class pointer is prefereable than conversion to a indirect base class pointer
+        * conversion from derived class pointer to a base class pointer is preferable than conversion to a indirect base class pointer
             * `A` <- `B` <- `C`
             * conversion from pointer to `C` to pointer to `B` is better than conversion from pointer to `C` to pointer to `A`
     * user-defined conversion
