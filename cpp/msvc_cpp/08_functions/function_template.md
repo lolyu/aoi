@@ -19,5 +19,23 @@
     * in this way, any other code that wants to use this template is limited to use the already-instanted template.
         * not allowed to instantiate new template, because the template definition is not visible to other source file in the compile-time.
 
+## decltype
+* `decltype` is called `declare type`
+* `decltype` is used to inspects the declared type of an entity: `decltype(expression)`.
+    * RULE#1: if `expression` is an unparenthesized identifier, `decltype` yields the type of the identifier.
+    * RULE#2: if `expression` is a function call, `decltype` yields the function return type.
+    * RULE#3: if the `expression` is a `lvalue`, `decltype` yields the reference type.
+    * RULE#4: if non of the rules from #1 to #3 works, `decltype` yields the same type as `expression`
+* use `decltype` and trailing return type to inspect the function return type
+
+```cpp
+template <typename T0, typename T1>
+auto add(T0 t0, T1 t1) -> decltype(t0 + t1)
+{
+    return t0 + t1;
+}
+```
+
+
 ## references
 * https://isocpp.org/wiki/faq/templates#templates-defn-vs-decl
