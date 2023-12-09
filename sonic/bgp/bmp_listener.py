@@ -3,9 +3,12 @@ import socket
 import struct
 import enum
 
+from scapy.contrib import bgp
 
-LOCALHOST = "127.0.0.1"
-BGPD_BMP_PORT = 8900
+
+demo_bmp_packet = b'\x00@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\n\x00\x00=\x00\x00\xfcXd\x01\x00\x1fep\x17\x8d\x00\x00\\\x96\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00=\x02\x00\x00\x00%@\x01\x01\x00P\x02\x00\x16\x02\x05\x00\x00\xfeL\x00\x00\xfcX\x00\x00\xff\xfe\x00\x00\x1a\n\x00\x00\x1a\x0b@\x03\x04\n\x00\x00=\x00'
+LOCALHOST = "10.206.144.131"
+BGPD_BMP_PORT = 8990
 
 
 class BMPMessageType(enum.Enum):
@@ -40,7 +43,29 @@ class BMPPeerHeader(ctypes.BigEndianStructure):
         ("timestamp_sec", ctypes.c_uint32),
         ("timestamp_msec", ctypes.c_uint32),
     ]
+
     _pack_ = 1
+
+    @property
+    def is_peer_ipv4(self):
+        """Returns True if the peer is IPv4."""
+        if hasattr(self, "_is_peer_ipv4"):
+            return self._is_peer_ipv4
+        self._is_peer_ipv4 = (self.peer_flags & (0x01 << 7) == 0)
+        return self._is_peer_ipv4
+
+    @property
+    def peer_address_str(self):
+        """Returns the peer address as a string."""
+        if hasattr(self, "_peer_address_str"):
+            return self._peer_address_str
+        if self.is_peer_ipv4:
+            buff = bytearray(self.peer_address)
+            peer_address_str = socket.inet_ntop(socket.AF_INET, buff[-4:])
+        else:
+            peer_address_str = socket.inet_ntop(socket.AF_INET6, self.peer_address)
+        self._peer_address_str = peer_address_str
+        return self._peer_address_str
 
 
 def setup_bmp_socket():
@@ -54,28 +79,16 @@ def handle_bgp_update(packet_data):
     """Handles a BGP update."""
     peer_header_data = packet_data[:ctypes.sizeof(BMPPeerHeader)]
     bmp_peer_header = BMPPeerHeader.from_buffer_copy(peer_header_data)
-    print(
-        bmp_peer_header.peer_type,
-        bmp_peer_header.peer_flags,
-        bmp_peer_header.peer_distinguisher,
-        bmp_peer_header.peer_address,
-        bmp_peer_header.peer_as,
-        bmp_peer_header.peer_bgp_id,
-        bmp_peer_header.timestamp_sec,
-        bmp_peer_header.timestamp_msec
-    )
+    bgp_packet = packet_data[ctypes.sizeof(BMPPeerHeader):]
+    bgp_packet = bgp.BGP(bgp_packet)
+    print("peer address: %s, peer AS: %d" % (bmp_peer_header.peer_address_str, bmp_peer_header.peer_as))
+    print("BGP update:%s" % bgp_packet.show(dump=True))
 
-    # print("Peer header:", peer_header.peer_type, peer_header.peer_flags, peer_header.peer_distinguisher, peer_header.peer_address, peer_header.peer_as, peer_header.peer_bgp_id)
-    # packet_data = packet_data[BMPPeerHeader.size:]
-    # print("Packet data:", packet_data)
-
-
-data = b'\x00@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\n\x00\x00=\x00\x00\xfcXd\x01\x00\x1fep\x17\x8d\x00\x00\\\x96\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00=\x02\x00\x00\x00%@\x01\x01\x00P\x02\x00\x16\x02\x05\x00\x00\xfeL\x00\x00\xfcX\x00\x00\xff\xfe\x00\x00\x1a\n\x00\x00\x1a\x0b@\x03\x04\n\x00\x00=\x00'
 
 if __name__ == "__main__":
     bmp_sock = setup_bmp_socket()
     pkt_count = 1
-    while True:        
+    while True:
         pkt_header_data = bmp_sock.recv(ctypes.sizeof(BMPHeader))
         bmp_header = BMPHeader.from_buffer_copy(pkt_header_data)
         print("%dth packet:" % pkt_count, bmp_header.version, bmp_header.length, bmp_header.type)
