@@ -46,6 +46,26 @@ swss.rec.11.gz:2023-12-17.08:08:00.289083|ROUTE_TABLE:193.3.224.0/25|SET|nexthop
 ```cpp
             if (op == SET_COMMAND)
                 ...
+                if (nhg.getSize() == 1 && nhg.hasIntfNextHop())
+                {
+                    ...
+                    else if (ip_prefix.isFullMask() && m_intfsOrch->isPrefixSubnet(ip_prefix, alsv[0]))
+                    {
+                        /* The prefix is full mask (/32 or /128) and it is an interface subnet route, so IntfOrch has already
+                         * created an IP2ME route for it and we skip programming such route here as it already exists.
+                         * However, to keep APPL_DB and APPL_STATE_DB consistent we have to publish it. */
+                        publishRouteState(ctx);
+                        it = consumer.m_toSync.erase(it);
+                    }
+                    /* subnet route, vrf leaked route, etc */
+                    else
+                    {
+                        if (addRoute(ctx, nhg))
+                            it = consumer.m_toSync.erase(it);
+                        else
+                            it++;
+                    }
+                }
                 else if (m_syncdRoutes.find(vrf_id) == m_syncdRoutes.end() ||
                     m_syncdRoutes.at(vrf_id).find(ip_prefix) == m_syncdRoutes.at(vrf_id).end() ||
                     m_syncdRoutes.at(vrf_id).at(ip_prefix) != RouteNhg(nhg, ctx.nhg_index) ||
@@ -71,15 +91,87 @@ swss.rec.11.gz:2023-12-17.08:08:00.289083|ROUTE_TABLE:193.3.224.0/25|SET|nexthop
 ```
 
 * perform add/remove route post actions(`adRoutePost` or `removeRoutePost`)
+    * `addRoutePost`
+    * `removeRoutePost`
 
+### doTask retry with bulker
+```cpp
+    auto it = consumer.m_toSync.begin();
+    while (it != consumer.m_toSync.end())
+    {
+        // Route bulk results will be stored in a map
+        std::map<
+                std::pair<
+                        std::string,            // Key
+                        std::string             // Op
+                >,
+                RouteBulkContext
+        >                                       toBulk;
+
+        // Add or remove routes with a route bulker
+        while (it != consumer.m_toSync.end())
+        {
+            if (op == SET_COMMAND)
+            {
+                if (addRoute(ctx, nhg))
+                    it = consumer.m_toSync.erase(it);
+                else
+                    it++;
+            }
+            else if (op == DEL_COMMAND)
+            {
+                if (removeRoute(ctx))
+                    it = consumer.m_toSync.erase(it);
+                else
+                    it++;
+            }
+        }
+        gRouteBulker.flush();
+
+        // Go through the bulker results
+        auto it_prev = consumer.m_toSync.begin();
+        m_bulkNhgReducedRefCnt.clear();
+        while (it_prev != it)
+        {
+            KeyOpFieldsValuesTuple t = it_prev->second;
+
+            string key = kfvKey(t);
+            string op = kfvOp(t);
+            auto found = toBulk.find(make_pair(key, op));
+            const auto& ctx = found->second;
+            const auto& object_statuses = ctx.object_statuses;
+
+            const sai_object_id_t& vrf_id = ctx.vrf_id;
+            const IpPrefix& ip_prefix = ctx.ip_prefix;
+
+            if (op == SET_COMMAND)
+            {
+                if (addRoutePost(ctx, nhg))
+                    it_prev = consumer.m_toSync.erase(it_prev);
+                else
+                    it_prev++;
+            }
+            else if (op == DEL_COMMAND)
+            {
+                /* Cannot locate the route or remove succeed */
+                if (removeRoutePost(ctx))
+                    it_prev = consumer.m_toSync.erase(it_prev);
+                else
+                    it_prev++;
+            }
+        }
+    }
+```
+* if `addRoutePost` or `removeRoutePost` fail, the route event will be kept in the to-sync queue, waiting to be processed in the next round.
 
 ### addRoute
 * `addRoute` does the following:
-    * check the nexthop:
+    * get the nexthop id from either the interface or nexthop neighbor
         * if the nexthop is interface, check if the interface exists
         * if the nexthop is ip neighbor, check if the neighbor is resolvable
     * add the route to the route bulker
     * flush the unfinished ops stored in the route bulker
+
 
 ```cpp
     if (it_route == m_syncdRoutes.at(vrf_id).end() || gRouteBulker.bulk_entry_pending_removal(route_entry))
@@ -108,6 +200,9 @@ swss.rec.11.gz:2023-12-17.08:08:00.289083|ROUTE_TABLE:193.3.224.0/25|SET|nexthop
 ```
 
 ### addRoutePost
+* handle the `addRoute` failures if any
+    * cleanup the nexthop group if created
+* handle the nexthop reference counting
 
 ### removeRoute
 ### remoteRoutePost
