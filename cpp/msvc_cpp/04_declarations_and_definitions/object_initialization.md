@@ -66,7 +66,7 @@ T t{};
 
 * **NOTE**: copy initialization could not invoke explicit constructors
 ```cpp
-shared_ptr<int> sp = new int(100); // faulty
+shared_ptr<int> sp = new int(100); // faulty, as the constructor is explicit
 ```
 
 ## direct initialization
