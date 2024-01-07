@@ -6,7 +6,7 @@ using namespace std;
 class Demo
 {
 public:
-    Demo(const char *s = "helloworld") : ps(new char[strlen(s) + 1])
+    Demo(const char *s = "helloworld") : ps(strlen(s) ? new char[strlen(s) + 1] : nullptr)
     {
         strcpy(ps, s);
     }
