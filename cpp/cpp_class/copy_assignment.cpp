@@ -9,14 +9,11 @@ public:
     Demo(const char *s = "helloworld") : ps(strlen(s) ? new char[strlen(s) + 1] : nullptr)
     {
         strcpy(ps, s);
+        cout << "construct string: " << ps << endl;
     }
 
-    Demo(const Demo &demo)
+    Demo(const Demo &demo) : Demo(demo.ps)
     {
-        char *new_ps = new char[strlen(demo.ps) + 1];
-        strcpy(new_ps, demo.ps);
-        delete[] ps;
-        ps = new_ps;
     }
 
     Demo &operator=(Demo &demo)
@@ -35,6 +32,7 @@ public:
 
     ~Demo()
     {
+        cout << "delete string: " << ps << endl;
         delete[] ps;
     }
 
