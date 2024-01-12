@@ -45,7 +45,7 @@ int main()
     * the default argument allows you to call a function without specifying all of the arguments
     * it does not allow you to create a pointer to the function that does not specify the types of all the arguments
 * the type/signature of a function that has default parameters is the same as the type/signature of the function if the parameters were there without any default values
-* the default value is replaced in compile time, so the default value must be specified in the function declaration.
+* **the default value is replaced in compile time, so the default value must be specified in the function declaration.**
     * so in the following example, `foo()` is replaced with `foo(0)` in the compile time.
 ```cpp
 int foo(int a = 0);
