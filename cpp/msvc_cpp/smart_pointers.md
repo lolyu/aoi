@@ -117,7 +117,7 @@ function(std::make_unique<A>(), std::make_unique<B>());                         
 ### member function
 * `shared_ptr<T, delete>::reset(T *t)`: replace the managed object with `*t`
     * if `*this` already owns an object and it is the last `std::shared_ptr` owning it, the object is destroyed
-* `shared_ptr<T, delete>::swap(shared_ptr<T, delte> t)`: exchanges the stored pointer values and the ownershios of `*this` and `t`
+* `shared_ptr<T, delete>::swap(shared_ptr<T, delte> t)`: exchanges the stored pointer values and the ownerships of `*this` and `t`
 * `shared_ptr<T, delete>::use_count`: returns the numbers of `shared_ptr` instances referring to the same managed object
 * `shared_ptr<T, delete>::unique`: checks if the managed object is only managed by current `shared_ptr` instance
 * `shared_ptr<T, delete>::owner_before`:
