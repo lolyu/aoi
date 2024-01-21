@@ -26,12 +26,15 @@ int i = f();
     * so if the return type is a class, its copy/move constructor is called twice.
 
 ### return value optimization
+* without `RVO` or `NRVO`, when function returns, the return value will be copied/moved to a memory that the function caller could reference.
 * when a local variable is returned by value from a function, the compiler always has some optimizations - the returned value is constructed directly in the storage to which the function's return value would otherwise be moved/copied to
     * `NRVO`: named return value optimization
     * `RVO`: return value optimization
 ```cpp
 #include <iostream>
 using namespace std;
+
+// g++ rvo.cpp -fno-elide-constructors
 
 class ABC
 {
@@ -76,6 +79,11 @@ int main()
     ABC abc;
     cout << endl;
 
+    // without RVO: constructor -> copy/move constructor -> destructor
+    // with RVO: constructor -> destructor
+    fun123();
+    cout << endl;
+
     // without NRVO: constructor -> copy/move constructor -> destructor -> copy/move constructor -> destructor
     // with NRVO: constructor
     ABC obj1(fun123()); // NRVO
@@ -89,6 +97,7 @@ int main()
     // without NRVO: constructor -> move constructor
     // with NRVO: constructor
     ABC xyz = "Stack Overflow"; // RVO
+
     return 0;
 }
 ```
