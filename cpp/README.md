@@ -5,6 +5,7 @@
 | class inheritance     | https://isocpp.org/wiki/faq/strange-inheritance  |
 | template              | https://isocpp.org/wiki/faq/templates            |
 | class special members | https://www.cplusplus.com/doc/tutorial/classes2/ |
+| POD struct alignment  | https://github.com/lolyu/aoi/blob/master/cpp/msvc_cpp/02_cpp_basics/cpp_object_alignment.md |
 
 
 ## TTR
