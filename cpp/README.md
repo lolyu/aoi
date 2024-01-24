@@ -15,3 +15,4 @@
 |storage duration and linkage|https://github.com/lolyu/aoi/blob/master/cpp/msvc_cpp/04_declarations_and_definitions/declaration_and_definitions.md|
 |copy-and-swap|https://stackoverflow.com/questions/3279543/what-is-the-copy-and-swap-idiom|
 |rule of three/five/zero|<br>https://stackoverflow.com/questions/4172722/what-is-the-rule-of-three<br/><br>https://en.cppreference.com/w/cpp/language/rule_of_three<br/>|
+| pimpl(pointer to implementation)|https://en.cppreference.com/w/cpp/language/pimpl|
