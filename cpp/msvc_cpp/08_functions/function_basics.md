@@ -27,6 +27,9 @@ int i = f();
 
 ### return value optimization
 * without `RVO` or `NRVO`, when function returns, the return value will be copied/moved to a memory that the function caller could reference.
+* How does the compiler implement function return class/struct?
+   * if a function returns a struct/class, the caller usually allocate a space on the stack, and pass the pointer to the space to the function via a hidden argument.
+   * so when the function returns a struct/class, it is copied/moved to the memory space on the caller stack -> one copy/move constructor call will be made.
 * when a local variable is returned by value from a function, the compiler always has some optimizations - the returned value is constructed directly in the storage to which the function's return value would otherwise be moved/copied to
     * `NRVO`: named return value optimization
     * `RVO`: return value optimization
