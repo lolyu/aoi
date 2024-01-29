@@ -13,7 +13,19 @@
 3) Then, non-static data member are initialized in order of declaration in the class definition.
 4) Finally, the body of the constructor is executed.
 
+## explicit constructor
+* if a class has a constructor that takes a single parameter, or if all parameters except one have a default value, the parameter type can be implicitly converted to the class type.
+```cpp
+Box(int size);
 
+Box b = 42;
+```
+* to disable this implicit conversion, use `explicit` keyword:
+```cpp
+explicit Box(int size);
+
+Box b = 42;   // not allowed
+```
 
 
 ## references
