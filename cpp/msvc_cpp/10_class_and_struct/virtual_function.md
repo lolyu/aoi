@@ -265,7 +265,7 @@ Dump of assembler code for function _ZThn16_N7Derived3fooEv:
 End of assembler dump.
 ```
 * the thunk function basically does two things:
-    * convert the subobject pointer to the class pointer
+    * convert the subobject pointer to the class object pointer
     * call the corresponding virtual function defined in the class virtual function table
 * `b1ptr->foo()` is same as `((Derived*)b1ptr)->foo()`, and `this` pointer is the `Derived *` instead of `Base1 *`
 
