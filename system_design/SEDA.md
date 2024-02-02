@@ -1,4 +1,4 @@
-# staged event driven architecture
+# staged event-driven architecture
 ## references
 |title|link|
 |-|-|
