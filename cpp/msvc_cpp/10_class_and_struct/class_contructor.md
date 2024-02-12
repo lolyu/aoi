@@ -1,4 +1,5 @@
 # class constructor
+* if a class member has no default constructor, the class member must be explicitly initialized in the member initializer list.
 
 ## member initializer list
 * a constructor can optionally have member initializer list, which initialize the object listed before the constructor body runs:
