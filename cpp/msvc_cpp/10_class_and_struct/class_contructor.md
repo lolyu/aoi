@@ -27,7 +27,9 @@ explicit Box(int size);
 
 Box b = 42;   // not allowed
 ```
-
+## constructor delegation
+* to reduce code duplication, constructor could call another constructor in the initialization list - delegating the member initialization to another constructor.
+* **NOTE**: you cannot do member initialization in the initialization list that has constructor delegation.
 
 ## references
 * https://en.cppreference.com/w/cpp/language/constructor
