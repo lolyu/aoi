@@ -1,6 +1,13 @@
 # move semantics
 * the move constructor/assignment takes resources owned by the parameter.
     * the move constructor/assigment should release the data pointers in the source object so the destructor will not free the memory multiple times.
+* the move constructor/assignment should do the following:
+    * destroy self visible resources
+        * delete any local pointers
+    * move assign/init all bases and members
+        * move the data from other to self
+    * if the move assign/init cannot make the other resource-less, make it so
+        * assign pointers in other object to `nullptr`
 
 ```cpp
 class MemoryBlock
@@ -28,7 +35,7 @@ public:
         std::copy(other._data, other._data + other._length, _data);
     }
 
-    MemoryBlock(MemoryBlock &&other) noexcept : _length(other._length), _data(other._data)
+    MemoryBlock(MemoryBlock &&other) noexcept : _length(other._length), _data(other._data)        // [1]
     {
         std::cout << "MemoryBlock(MemoryBlock &&). length = " << _length << ". Moving resource" << std::endl;
 
@@ -55,7 +62,7 @@ public:
         }
     }
 
-    MemoryBlock &operator=(MemoryBlock &&other) noexcept
+    MemoryBlock &operator=(MemoryBlock &&other) noexcept                                            // [2]
     {
         std::cout << "MemoryBlock &operator=(MemoryBlock &&). length = " << _length << ". Moving resource" << std::endl;
 
@@ -89,6 +96,33 @@ private:
 * as of C++ 11, STL containers like `vector` will use `std::move_if_noexcept` to decide to use move or copy constructor for the resize operations.
 * user defined classes should define `noexcept` move constructor so containers like `vector` could move them instead of copying them during capacity resize.
 
+## use swap to implement move semantics
+```cpp
+    void swap(MemoryBlock &other)
+    {
+        std::swap(_length, other._length);
+        std::swap(_data, other._data);
+    }
+
+    MemoryBlock(MemoryBlock &&other) noexcept                        // [3]
+    {
+        swap(other);
+    }
+
+    MemoryBlock &operator=(MemoryBlock &&other) noexcept             // [4]
+    {
+        swap(other);
+
+        return *this;
+    }
+```
+* **don't use swap to implement move semantics**:
+   1. this implementation with `swap` doesn't make `other` resource-less
+   2. the move constructor/assignment with `swap`([3] and [4]) is slower than the native implementation([1] and [2])
+        * [3] and [4] takes 4 loads and 6 stores
+        * [1] and [2] takes 2 loads and 4 stores
+
 ## references
 * https://bajamircea.github.io/coding/cpp/2020/05/08/how-vector-copy-move.html
 * http://howardhinnant.github.io/container_summary.html
+* https://stackoverflow.com/questions/6687388/why-do-some-people-use-swap-for-move-assignments
