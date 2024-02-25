@@ -56,7 +56,11 @@ int main()
 
 ## single inheritance
 ## multiple inheritance
-## 
+* for multiple inheritance, the base class list order matters:
+    * the class appeared ealier is initialized earlier
+    * the class appeared ealier is destroyed later
 
+### virtual base
+* a class can be an indirect base class to a derived class more than once, so the derived class object will have multiple copies of the class members.
 
 ## reference
