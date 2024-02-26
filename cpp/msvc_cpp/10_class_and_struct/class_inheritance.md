@@ -121,7 +121,9 @@ int main()
 ### virtual base
 * a class can be an indirect base class to a derived class more than once, so the derived class object will have multiple copies of the class members.
 * with virtual base class, the derived class only have one copy of the base class
+
 ![image](https://github.com/lolyu/aoi/assets/35479537/771e441a-0a32-4b21-8aef-29464c0ed61c)
 
+* For each distinct base class that is specified virtual, the most derived object contains only one base class subobject of that type, even if the class appears many times in the inheritance hierarchy (as long as it is inherited virtual every time)
 
 ## reference
