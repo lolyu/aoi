@@ -60,7 +60,68 @@ int main()
     * the class appeared ealier is initialized earlier
     * the class appeared ealier is destroyed later
 
+* multiple inheritance might introduce name ambiguity, which could be resolved with qualified resolution.
+* multiple inheritance also could introduce conversion ambiguity when convert pointer/reference to derived class to the parent class subject as there might be multiple parent class subobjects inside the derived class object.
+```cpp
+#include <iostream>
+
+using namespace std;
+
+struct Queue
+{
+    int i;
+};
+
+struct CashierQueue : public Queue
+{
+    int j;
+};
+
+struct LunchQueue : public Queue
+{
+    int k;
+};
+
+struct TakeoutQueue : public Queue
+{
+    int l;
+};
+
+struct LunchCashierQueue : public CashierQueue, public LunchQueue
+{
+    int m;
+};
+
+struct LunchTakeoutCashierQueue : public LunchCashierQueue, public TakeoutQueue
+{
+    int n;
+};
+
+int main()
+{
+    LunchTakeoutCashierQueue ltcq;
+    ltcq.CashierQueue::i = 1;
+    ltcq.LunchQueue::i = 2;
+    ltcq.TakeoutQueue::i = 3;
+    // name ambiguity, compiler doesn't know which Queue subobject to use
+    // there are three Queue subobjects in the LunchTakeoutCashierQueue object
+    ltcq.Queue::i = 2;
+
+    LunchTakeoutCashierQueue *pltcq = &ltcq;
+    Queue *q;
+    q = (Queue *)(LunchQueue *)pltcq;
+    q = (Queue *)(LunchQueue *)pltcq;
+    q = (Queue *)(TakeoutQueue *)pltcq;
+    // conversion ambiguity as there are three Queue subobjects in the LunchTakeoutCashierQueue object
+    q = (Queue *)pltcq;
+    return 0;
+}
+```
+
 ### virtual base
 * a class can be an indirect base class to a derived class more than once, so the derived class object will have multiple copies of the class members.
+* with virtual base class, the derived class only have one copy of the base class
+![image](https://github.com/lolyu/aoi/assets/35479537/771e441a-0a32-4b21-8aef-29464c0ed61c)
+
 
 ## reference
