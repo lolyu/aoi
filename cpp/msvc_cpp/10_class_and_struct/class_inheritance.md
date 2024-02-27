@@ -126,4 +126,34 @@ int main()
 
 * For each distinct base class that is specified virtual, the most derived object contains only one base class subobject of that type, even if the class appears many times in the inheritance hierarchy (as long as it is inherited virtual every time)
 
+## abstract class
+* an abstract class is a class with pure virtual function that has the following syntax:
+```
+declarator virt-specifier ﻿(optional) = 0;
+```
+* pure virtual function must be overriden in the derived classes
+* pure virtual function can be defined with a function implementation
+* no object of an abstract class can be created
+* abstract classes cannot be used for:
+    * Variables or member data
+    * Argument types
+    * Function return types
+    * Types of explicit conversions
+
+* **better to have a pure virtual destructor for an abstract class**
+
+## class scope rules
+* name lookup order:
+    1. Current block scope if name is used inside a function; otherwise, global scope.
+    2. Outward through each enclosing block scope, including the outermost function scope (which includes function parameters).
+    3. If the name is used inside a member function, the class's scope is searched for the name.
+    4. The class's base classes are searched for the name.
+    5. The enclosing nested class scope (if any) and its bases are searched. The search continues until the outermost enclosing class scope is searched.
+    6. Global scope is searched.
+* name lookup -> overload resolution -> member access rule
+* names specified after the member-selection operator(`.` or `->`) must be members of the class type of the object specified on the left of the operator or members of its base class(es).
+
 ## reference
+* https://en.cppreference.com/w/cpp/language/abstract_class
+* https://en.cppreference.com/w/cpp/language/lookup
+* https://en.cppreference.com/w/cpp/language/unqualified_lookup
