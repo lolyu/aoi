@@ -1,5 +1,5 @@
 # C++ class special members
-* special member functions:
+* special members are those that compiler can be asked to automatically generated code for:
     * default constructor
     * destructor
     * copy constructor && copy assignment operator
