@@ -253,6 +253,41 @@ int main()
 * if the callee has to share the ownership(the caller doesn't guarantee the `shared_ptr` is always in-scope during the callee execution time), pass `shared_ptr` by value
 * if the caller can guarantee that the `shared_ptr` is always in-scope during the callee execution time, pass by reference, by raw pointer or by managed object.
 
+### thread safty of `shared_ptr`
+* `shared_ptr` offers the following:
+    * a shared_ptr instance can be "read" (accessed using only const operations) simultaneously by multiple threads.
+    * different shared_ptr instances can be “written to” (accessed using mutable operations such as operator= or reset) simultaneously by multiple threads (even when these instances are copies and share the same reference count underneath.)
+```cpp
+std::shared_ptr<int> ptr = std::make_shared<int>(2011);
+
+// ok, modified by different object
+for (auto i= 0; i<10; i++){
+   std::thread([ptr]{
+     std::shared_ptr<int> localPtr(ptr);
+     localPtr= std::make_shared<int>(2014);
+    }).detach(); 
+}
+
+// not ok, modified by the same object
+std::shared_ptr<int> ptr = std::make_shared<int>(2011);  
+
+for (auto i= 0; i<10; i++){
+   std::thread([&ptr]{
+     ptr= std::make_shared<int>(2014);
+   }).detach(); 
+}
+
+// use atomic with shared_ptr
+std::shared_ptr<int> ptr = std::make_shared<int>(2011);
+
+for (auto i =0;i<10;i++){
+   std::thread([&ptr]{ 
+     auto localPtr= std::make_shared<int>(2014);
+     std::atomic_store(&ptr, localPtr);
+   }).detach(); 
+}
+```
+
 ## weak_ptr
 * `std::weak_ptr` holds a non-owning reference to an object that is managed by `std::shared_ptr`
     * `std::weak_ptr` must be converted to `std::shared_ptr` to access the managed object
