@@ -395,6 +395,42 @@ int main()
     * `weak_from_this` returns the `weak_ptr` member
 
 ```cpp
+template<class D>
+class enable_shared_from_this {
+protected:
+    constexpr enable_shared_from_this() { }
+    enable_shared_from_this(enable_shared_from_this const&) { }
+    enable_shared_from_this& operator=(enable_shared_from_this const&) {
+        return *this;
+    }
+
+public:
+    shared_ptr<T> shared_from_this() { return self_.lock(); }
+    shared_ptr<T const> shared_from_this() const { return self_.lock(); }
+
+private:
+    weak_ptr<D> self_;
+
+    friend shared_ptr<D>;
+};
+
+template<typename T>
+shared_ptr<T>::shared_ptr(T* ptr) {
+    // ...
+    // Code that creates control block goes here.
+    // ...
+
+    // NOTE: This if check is pseudo-code. Won't compile. There's a few
+    // issues not being taken in to account that would make this example
+    // rather noisy.
+    if (is_base_of<enable_shared_from_this<T>, T>::value) {
+        enable_shared_from_this<T>& base = *ptr;
+        base.self_ = *this;
+    }
+}
+```
+
+```cpp
 #include <iostream>
 #include <memory>
 
@@ -449,3 +485,4 @@ int main()
 * https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique
 * https://en.cppreference.com/w/cpp/memory/shared_ptr/make_shared
 * https://stackoverflow.com/questions/27109379/what-is-shared-ptrs-aliasing-constructor-for
+* https://stackoverflow.com/questions/34061515/how-stdenable-shared-from-thisshared-from-this-works
