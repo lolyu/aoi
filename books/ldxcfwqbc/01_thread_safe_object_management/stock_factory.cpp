@@ -1,15 +1,18 @@
 #include <iostream>
 #include <memory>
+#include <mutex>
+#include <map>
 #include <functional>
 #include <string>
-#include <map>
-#include <mutex>
-#include <stdio.h>
+#include <cstdio>
+#include <cstdlib>
+
+using namespace std;
 
 class Stock
 {
 public:
-    Stock(const std::string name) : _name(name)
+    Stock(const string name) : _name(name)
     {
         printf("Stock[%p] %s\n", this, _name.c_str());
     }
@@ -22,26 +25,36 @@ public:
     Stock(const Stock &) = delete;
     Stock &operator=(const Stock &) = delete;
 
-    const std::string &key() const { return _name; }
+    const string &key() const { return _name; }
 
 private:
-    std::string _name;
+    string _name;
 };
 
-class StockFactory : public std::enable_shared_from_this<StockFactory>
+class StockFactory : public enable_shared_from_this<StockFactory>
 {
     friend class Stock;
+
 public:
-    std::shared_ptr<Stock> get(const std::string &key)
+    StockFactory()
     {
-        std::lock_guard<std::mutex> lock(_mutex);
-        std::shared_ptr<Stock> stock;
-        std::weak_ptr<Stock> &stock_ref = _stocks[key];
-        stock = stock_ref.lock();
+        printf("StockFactory[%p]\n", this);
+    }
+    StockFactory(const StockFactory &sf) = delete;
+    StockFactory &operator=(const StockFactory &sf) = delete;
+    ~StockFactory()
+    {
+        printf("~StockFactory[%p]\n", this);
+    }
+
+    shared_ptr<Stock> get(const string &key)
+    {
+        lock_guard<mutex> lock(_mutex);
+        weak_ptr<Stock> &stock_ref = _stocks[key];
+        shared_ptr<Stock> stock = stock_ref.lock();
         if (!stock)
         {
-            stock.reset(new Stock(key), std::bind(&StockFactory::remove_stock, shared_from_this(), std::placeholders::_1));
-            stock_ref = stock;
+            stock.reset(new Stock(key), bind(&StockFactory::remove_stock_weak, weak_from_this(), placeholders::_1));
         }
         return stock;
     }
@@ -63,37 +76,41 @@ public:
     }
 
 private:
-    void remove_stock(Stock *s)
+    void remove_stock(const Stock *sp)
     {
-        if (s)
+        if (sp)
         {
-            std::lock_guard<std::mutex> lock(_mutex);
-            _stocks.erase(s->key());
+            lock_guard<mutex> lock(_mutex);
+            _stocks.erase(sp->key());
         }
-        delete s;
+        delete sp;
     }
 
-private:
-    std::mutex _mutex;
-    std::map<std::string, std::weak_ptr<Stock>> _stocks;
+    static void remove_stock_weak(const weak_ptr<StockFactory> &wsfp, const Stock *sp)
+    {
+        shared_ptr<StockFactory> sfp = wsfp.lock();
+        if (sfp)
+        {
+            sfp->remove_stock(sp);
+        }
+    }
+
+    mutex _mutex;
+    map<string, weak_ptr<Stock>> _stocks;
 };
 
 int main()
 {
-    std::shared_ptr<StockFactory> stock_factory = std::make_shared<StockFactory>();
-    std::cout << stock_factory->stock_count() << std::endl;
+    shared_ptr<Stock> stock;
     {
-        std::shared_ptr<Stock> msft = stock_factory->get("MSFT");
-        std::shared_ptr<Stock> apple = stock_factory->get("APPLE");
-
-        std::cout << msft->key() << std::endl;
-        std::cout << apple->key() << std::endl;
-
-        stock_factory->show_stocks();
-        std::cout << stock_factory->stock_count() << std::endl;
+        shared_ptr<StockFactory> stock_factory = make_shared<StockFactory>();
+        stock = stock_factory->get("MSFT");
+        shared_ptr<Stock> msft_stock = stock_factory->get("MSFT");
+        // stock_factory->show_stocks();
+        cout << stock.use_count() << endl;
+        cout << msft_stock.use_count() << endl;
     }
-    stock_factory->show_stocks();
-    std::cout << stock_factory->stock_count() << std::endl;
-
+    auto stock2 = stock;
+    cout << stock.use_count() << endl;
     return 0;
 }
