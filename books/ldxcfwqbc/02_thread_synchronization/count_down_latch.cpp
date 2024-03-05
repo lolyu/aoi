@@ -40,20 +40,50 @@ private:
     mutex _mutex;
 };
 
-void worker_thread(Latch &latch)
+struct Job
 {
-    cout << "worker thread: " << this_thread::get_id() << " starts" << endl;
-    this_thread::sleep_for(chrono::seconds(1));
-    latch.count_down();
-    cout << "worker thread: " << this_thread::get_id() << " ends" << endl;
-}
+    const string name;
+    string product{"not worked"};
+    thread action{};
+};
 
 int main()
 {
-    Latch lt(3);
-    thread(worker_thread, ref(lt)).detach();
-    thread(worker_thread, ref(lt)).detach();
-    thread(worker_thread, ref(lt)).detach();
-    lt.wait();
+    Job jobs[]{{"Annika"}, {"Buru"}, {"Chuck"}};
+    Latch work_done{3};
+    Latch start_clean_up{1};
+
+    auto work = [&](Job& my_job)
+    {
+        my_job.product = my_job.name + " worked";
+        work_done.count_down();
+        start_clean_up.wait();
+        my_job.product = my_job.name + " cleaned";
+    };
+
+    std::cout << "Work is starting... ";
+    for (auto &job : jobs)
+    {
+        job.action = thread(work, ref(job));
+    }
+
+    work_done.wait();
+    std::cout << "done:\n";
+    for (auto const& job : jobs)
+        std::cout << "  " << job.product << '\n';
+
+    std::cout << "Workers are cleaning up... ";
+    start_clean_up.count_down();
+    for (auto &job : jobs)
+    {
+        job.action.join();
+    }
+
+    std::cout << "done:\n";
+    for (auto const& job : jobs)
+    {
+        std::cout << "  " << job.product << '\n';
+    }
+
     return 0;
 }
