@@ -1,4 +1,5 @@
 # thread synchronization
+![thread_sync_basics](https://github.com/lolyu/aoi/assets/35479537/0b6285bb-e340-4f16-89b5-425cba8ee1f4)
 
 ## references
 * [CPU cache handout](https://www.aristeia.com/TalkNotes/codedive-CPUCachesHandouts.pdf)
