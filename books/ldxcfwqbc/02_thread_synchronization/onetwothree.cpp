@@ -7,8 +7,6 @@
 
 using namespace std;
 
-/* G1 */
-
 mutex m;
 condition_variable cv;
 bool a_finish = false;
@@ -47,11 +45,10 @@ void c() {
 }
 
 int main() {
-    /* M1 */
     std::thread at(a);
     std::thread bt(b);
     std::thread ct(c);
-    /* M2 */
+
     ct.join();
     bt.join();
     at.join();
