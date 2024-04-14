@@ -30,6 +30,8 @@
    * `shared_lock` is non-copyable but movable
    * `shared_lock` allows defer-locking, time-constrained attempts at locking, recursive locking, ownership transfer.
    * locking a `shared_lock` locks the associated shared mutex in shared mode.
+* use with `std::shared_mutex` to implement rwlock
+   * demo code: https://github.com/lolyu/aoi/blob/master/books/ldxcfwqbc/02_thread_synchronization/thread_safe_counter.cpp
 
 ## references
 * https://en.cppreference.com/w/cpp/thread/lock_guard
