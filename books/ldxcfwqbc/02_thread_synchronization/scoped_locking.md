@@ -22,4 +22,17 @@
 
 ## `unique_lock`
 * `std::unique_lock` is a general purpose mutex ownership wrapper
-    * 
+   * `unique_lock` is non-copyable but movable
+   * `unique_lock` allows defer-locking, time-constrained attempts at locking, recursive locking, ownership transfer, and use of condition variable
+
+## `shared_lock`
+* `std::shared_lock` is a general purpose mutex ownership wrapper
+   * `shared_lock` is non-copyable but movable
+   * `shared_lock` allows defer-locking, time-constrained attempts at locking, recursive locking, ownership transfer.
+   * locking a `shared_lock` locks the associated shared mutex in shared mode.
+
+## references
+* https://en.cppreference.com/w/cpp/thread/lock_guard
+* https://en.cppreference.com/w/cpp/thread/scoped_lock
+* https://en.cppreference.com/w/cpp/thread/unique_lock
+* https://en.cppreference.com/w/cpp/thread/shared_lock
