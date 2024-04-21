@@ -77,7 +77,7 @@
         * `synchronize-with`
         * `dependency-ordered before`
 
-* simply put, two operations `A` and `B` and `A` happens-before` `B`, `A` side-effect is guaranteed to be visible to `B`.
+* simply put, two operations `A` and `B` and `A` `happens-before` `B`, `A` side-effect is guaranteed to be visible to `B`.
 
 
 ## orderings
