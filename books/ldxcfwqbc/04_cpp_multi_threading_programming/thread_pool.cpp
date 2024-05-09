@@ -87,10 +87,7 @@ public:
         {
             {
                 std::unique_lock<std::mutex> lock(_mutex);
-                while (is_full() && _running)
-                {
-                    _not_full.wait(lock);
-                }
+                _not_full.wait(lock, [this](){ return !(is_full() && _running); });
                 // the wakeup could be due to either task pop event
                 // or stop event
                 if (!_running)
@@ -119,10 +116,7 @@ private:
         Task t;
         {
             std::unique_lock<std::mutex> lock(_mutex);
-            while (is_empty() && _running)
-            {
-                _not_empty.wait(lock);
-            }
+            _not_empty.wait(lock, [this](){ return !(is_empty() && _running); });
             // the wakeup could be due to either new task event or
             // stop event
             if (!is_empty())
@@ -152,9 +146,7 @@ private:
                 }
                 if (t)
                 {
-                    std::cout << time(0) << std::endl;
                     t();
-                    std::cout << time(0) << std::endl;
                 }
             }
         }
