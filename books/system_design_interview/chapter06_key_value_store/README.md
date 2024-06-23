@@ -1,6 +1,5 @@
 # Key Value Store
-
-
+![distributed_key_value_store](https://github.com/lolyu/aoi/assets/35479537/7ba9f668-9e7b-411d-b007-fc315593df6c)
 
 ## references
 * https://highscalability.com/gossip-protocol-explained/
