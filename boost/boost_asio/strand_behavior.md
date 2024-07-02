@@ -41,7 +41,6 @@ void strand_executor_service::dispatch(const implementation_type& impl,
   }
 }
 ```
-* `strand
 
 ## strand::wrap
 * `io_context::strand` definition
