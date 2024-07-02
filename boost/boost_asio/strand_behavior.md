@@ -169,3 +169,4 @@ $ ./a.out
 ## references
 * https://stackoverflow.com/questions/38136537/boostasiostranddispatchhandle-or-call-the-handle-directly
 * https://stackoverflow.com/questions/2326588/boost-asio-io-service-dispatch-vs-post
+* https://www.crazygaze.com/blog/2016/03/17/how-strands-work-and-why-you-should-use-them/
