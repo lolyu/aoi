@@ -30,5 +30,10 @@ Usage: add-symbol-file FILE [-readnow | -readnever] [-o OFF] [ADDR] [-s SECT-NAM
 # gdb --args linkmgrd-test --gtest_filter="*InitializeSendBuffer"
 ```
 
+## run with args and GDB commands
+```
+# gdb -ex="set confirm off" -ex=r -ex=bt -ex=q --args linkmgrd-test --gtest_filter="MuxPortTest*"
+```
+
 ## references
 * https://developers.redhat.com/blog/2021/04/30/the-gdb-developers-gnu-debugger-tutorial-part-1-getting-started-with-the-debugger#why_another_gdb_tutorial_
