@@ -10,3 +10,4 @@
 * [Linux network ring buffers](https://tungdam.medium.com/linux-network-ring-buffers-cea7ead0b8e8)
 * [RHEL 8 system tunning](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/8/html/monitoring_and_managing_system_status_and_performance/tuning-the-network-performance_monitoring-and-managing-system-status-and-performance#increasing-the-transmit-queue-length-of-a-nic-to-reduce-the-number-of-transmit-errors_tuning-network-adapter-settings)
 * [tracing a packet journey using ebpf](https://blog.yadutaf.fr/2017/07/28/tracing-a-packet-journey-using-linux-tracepoints-perf-ebpf/)
+* [queueing-in-the-linux-network-stack](https://www.coverfire.com/articles/queueing-in-the-linux-network-stack/)
