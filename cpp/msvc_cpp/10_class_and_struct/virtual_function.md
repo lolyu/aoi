@@ -251,7 +251,7 @@ quit)
 * the class object's `_vptr` points to the beginning of the virtual function pointers in the virtual function table
     * `_vptr` is the offset 16 of the class virtual function table.
 
-![image](https://github.com/lolyu/aoi/assets/35479537/55b60f46-3599-40c3-abfa-5f998a34a6d8)
+![image](https://github.com/user-attachments/assets/66d9b92f-b951-4429-a081-f952c9901af8)
 
 * for class that has multiple base classes, the compiler will generate one large virtual function table. The class subobject's `_vptr` points to different section of the class virtual function table.
     * the class object and the class's first subobject shares the same `_vptr`
