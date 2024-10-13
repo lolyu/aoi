@@ -1,4 +1,31 @@
-# C++ FAQ
+# C++
+* what's C++?
+    * C basics
+        * basic types
+        * pointers
+        * macro
+        * struct/enum/union
+    * C++ OOP
+        * encapsulation
+            * constructor
+                * initialization list
+                * default constructor
+                * copy constructor
+                * placement new
+            * destructor
+        * inheritation
+        * polymorphism
+            * virtual function
+            * RTTI
+            * dynamic cast
+            * RAII
+    * C++ generic programming
+        * template
+        * STL
+        * container, iterator
+
+
+## C++ FAQ
 | topic                 | link                                             |
 | --------------------- | ------------------------------------------------ |
 | C++ FAQ               | https://isocpp.org/wiki/faq/                     |
