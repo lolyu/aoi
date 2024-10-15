@@ -100,6 +100,8 @@ vtable for 'Derived' @ 0x555555557ce0 (subobject @ 0x7fffffffdfe0):
 [1]: 0x5555555552c0 <Parent::FooNotOverridden()>
 [2]: 0x5555555553da <Derived::Bar()>
 ```
+* `p->Foo()` will try to call `Foo()` in the virtual table, which is `0x5555555553ca <Derived::Foo()>`; `Dervied::foo()` will convert the `Parent` pointer `p` to a `Derived` pointer, so `this` inside `Foo` is a pointer of `Derived`.
+    * We can assume that `Derived::Foo` has signature as `Derived::Foo(Derived *this)`, it will implicitly convert `p` into `Derived *`.
 
 ## pure virtual function
 * pure virtual function is a placeholder in the virtual function table, means that it must be overridden by the derived classes.
