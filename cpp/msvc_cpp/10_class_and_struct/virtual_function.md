@@ -21,7 +21,7 @@ using namespace std;
 class Parent
 {
 public:
-    Parent(int p = 10) : p(p) 
+    Parent(int p = 10) : p(p)
     {
         cout << "Parent Constructor" << endl;
     }
@@ -49,7 +49,10 @@ public:
         return 10;
     }
 
-    void Foo() override {}
+    void Foo() override
+    {
+        std::cout << this << std::endl;
+    }
     void Bar() override {}
 
     virtual ~Derived() = default;
@@ -61,6 +64,8 @@ private:
 int main()
 {
     Derived d0;
+    Parent *p = &d0;
+    p->Foo();
     return 0;
 }
 ```
