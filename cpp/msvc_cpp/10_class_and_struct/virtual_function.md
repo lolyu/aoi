@@ -277,6 +277,68 @@ End of assembler dump.
 * `b1ptr->foo()` is same as `((Derived*)b1ptr)->foo()`, and `this` pointer is the `Derived *` instead of `Base1 *`
 
 ## virtual inheritance
+* without virtual inheritance, the shared-common base class is duplicated:
+    * its virtual functions are duplicated
+    * its data members are duplicated
+```cpp
+#include <iostream>
+#include <iostream>
+
+class Base
+{
+public:
+    virtual void foo()
+    {
+        std::cout << typeid(*this).name() << "::foo()" << std::endl;
+    }
+    virtual void bar()
+    {
+        std::cout << typeid(*this).name() << "::bar()" << std::endl;
+    }
+    int base_data = 100;
+};
+
+class Der1 : public virtual Base
+// class Der1 : public Base
+{
+public:
+    virtual void foo()
+    {
+        std::cout << typeid(*this).name() << "::foo()" << std::endl;
+        bar();
+    }
+    int der1_data = 101;
+};
+
+class Der2 : public virtual Base
+// class Der2 : public Base
+{
+public:
+    virtual void bar()
+    {
+        std::cout << typeid(*this).name() << "::bar()" << std::endl;
+    }
+    int der2_data = 102;
+};
+
+class Join : public Der1, public Der2
+{
+public:
+};
+
+int main()
+{
+    Base *bp = new Base();
+    Der1 *dp1 = new Der1();
+    Der2 *dp2 = new Der2();
+    Join *jp = new Join();
+
+    return 0;
+}
+
+```
+![image](https://github.com/user-attachments/assets/3d55e526-1983-4a39-87c1-45877c6c1720)
+
 
 ## virtual destructor
 
