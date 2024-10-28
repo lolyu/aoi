@@ -49,6 +49,21 @@
 ## show full command
 * press `c` to toggle
 
+## sort processes
+* `M`: Sort by the %MEM column.
+* `N`: Sort by PID column.
+* `T`: Sort by the TIME+ column.
+* `P`: Sort by the %CPU column.
+
+## change display units
+* press `E` to change the unit for the system memory.
+* press `e` to change the unit for the process memory.
+
+## monitor specified processes
+```
+# top -p [pid0] -p [pid1]
+```
+
 # references
 * https://www.redhat.com/en/blog/interpret-top-output
 * https://man7.org/linux/man-pages/man1/top.1.html
