@@ -64,6 +64,11 @@
 # top -p [pid0] -p [pid1]
 ```
 
+## monitor in threaded mode
+```
+# top -H -p [pid0] -p [pid1]
+```
+
 # references
 * https://www.redhat.com/en/blog/interpret-top-output
 * https://man7.org/linux/man-pages/man1/top.1.html
