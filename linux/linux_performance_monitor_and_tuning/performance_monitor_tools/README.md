@@ -9,6 +9,7 @@
 * iostat
 * irqbalance
 * valgrind
+* ethtool
 
 
 ## references
