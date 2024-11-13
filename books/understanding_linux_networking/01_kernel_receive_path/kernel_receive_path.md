@@ -565,9 +565,7 @@ softnet_break:
 		1. increase `softnet_data::time_squeeze`, which could be checked from the third column of `/proc/net/softnet_stat`
  		2. trigger another software interrupt: `NET_RX_SOFTIRQ`
 			* this explains why software interrupt `NET_RX_SOFTIRQ` count is much larger than the hardware interrupt count
-```
 
-```
 ```c
 // net/core/dev.c
 void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
