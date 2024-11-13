@@ -3,6 +3,8 @@
 ![image](https://github.com/user-attachments/assets/c544cdc2-4823-4db7-a596-4710dec25863)
 
 
+* to sum up, each tx/tx queue has a ring buffer, and incoming packets are mapped/stored to specific rx queue by hashing; after NiC copies packets to the ring buffer, it will trigger a hardware interrupt, which will be handled by specific CPU (with RSS, for each rx queue, it will have a dedicate CPU to handle its hardware interrupt); when the dedidate CPU handles the interrupt, it will add the ring buffer to the per-cpu poll list and trigger a software interrupt by setting a per-cpu flag. The `ksoftirqd` thread that runs on the same CPU keeps polling on the software interrupt flag, once it is set, it will call the corresponding software interrupt handler; In the software interrupt handler for packet receivement, it will retrieve the ring buffer from the poll list for this CPU and polls packets from the device by calling the polling function registered by the driver. The driver's polling function will fetch packets from the ring buffer, and pass it to the kernel networking stack.
+
 ## init igb driver
 ```c
 static struct pci_driver igb_driver = {
