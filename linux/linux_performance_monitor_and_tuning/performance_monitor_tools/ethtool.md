@@ -85,3 +85,52 @@ RX Mini:        n/a
 RX Jumbo:       n/a
 TX:             511
 ```
+## show rss hash
+```
+# ethtool -x eth0
+RX flow hash indirection table for eth0 with 2 RX ring(s):
+    0:      0     1     0     1     0     1     0     1
+    8:      0     1     0     1     0     1     0     1
+   16:      0     1     0     1     0     1     0     1
+   24:      0     1     0     1     0     1     0     1
+   32:      0     1     0     1     0     1     0     1
+   40:      0     1     0     1     0     1     0     1
+   48:      0     1     0     1     0     1     0     1
+   56:      0     1     0     1     0     1     0     1
+   64:      0     1     0     1     0     1     0     1
+   72:      0     1     0     1     0     1     0     1
+   80:      0     1     0     1     0     1     0     1
+   88:      0     1     0     1     0     1     0     1
+   96:      0     1     0     1     0     1     0     1
+  104:      0     1     0     1     0     1     0     1
+  112:      0     1     0     1     0     1     0     1
+  120:      0     1     0     1     0     1     0     1
+RSS hash key:
+Operation not supported
+RSS hash function:
+    toeplitz: on
+    xor: off
+    crc32: off
+```
+
+## show rx/tx queues
+```
+# ethtool -l eth0
+Channel parameters for eth0:
+Pre-set maximums:
+RX:             4
+TX:             1
+Other:          n/a
+Combined:       n/a
+Current hardware settings:
+RX:             2
+TX:             1
+Other:          n/a
+Combined:       n/a
+# cat /proc/interrupts
+           CPU0       CPU1       CPU2       CPU3
+...
+ 39:          0      10991          0          0   PCI-MSI 1048576-edge      eth0-tx-0
+ 40:          0          0        395          0   PCI-MSI 1048577-edge      eth0-rx-1
+ 41:          0          0          0        192   PCI-MSI 1048578-edge      eth0-rx-2
+```
