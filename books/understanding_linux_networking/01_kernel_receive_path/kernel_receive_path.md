@@ -542,9 +542,14 @@ static void net_rx_action(struct softirq_action *h)
 
 		netpoll_poll_unlock(have);
 	}
+out:
+	net_rps_action_and_irq_enable(sd);
 
 	return;
-
+softnet_break:
+	sd->time_squeeze++;
+	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
+	goto out;
 }
 ```
 
@@ -555,6 +560,8 @@ static void net_rx_action(struct softirq_action *h)
 	* `budget` controls how many packets `net_rx_action` polls from the device list.
 	* `weight` controls how many packets `net_rx_action` polls from a single device.
 		* `weight` is hard coded to 64 for igb driver, it is set by `netif_napi_add`
+* what if there are packets available to poll after timeout or `budget` drops to zero?
+	* `net_rx_action` will increase `softnet_data::time_squeeze`, which could be checked from the third column of `/proc/net/softnet_stat`
 ```c
 // net/core/dev.c
 void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
