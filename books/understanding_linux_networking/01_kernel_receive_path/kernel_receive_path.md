@@ -561,7 +561,13 @@ softnet_break:
 	* `weight` controls how many packets `net_rx_action` polls from a single device.
 		* `weight` is hard coded to 64 for igb driver, it is set by `netif_napi_add`
 * what if there are packets available to poll after timeout or `budget` drops to zero?
-	* `net_rx_action` will increase `softnet_data::time_squeeze`, which could be checked from the third column of `/proc/net/softnet_stat`
+	* `net_rx_action` will do two things:
+		1. increase `softnet_data::time_squeeze`, which could be checked from the third column of `/proc/net/softnet_stat`
+ 		2. trigger another software interrupt: `NET_RX_SOFTIRQ`
+			* this explains why software interrupt `NET_RX_SOFTIRQ` count is much larger than the hardware interrupt count
+```
+
+```
 ```c
 // net/core/dev.c
 void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
