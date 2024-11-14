@@ -130,7 +130,14 @@ Combined:       n/a
 # cat /proc/interrupts
            CPU0       CPU1       CPU2       CPU3
 ...
- 39:          0      10991          0          0   PCI-MSI 1048576-edge      eth0-tx-0
- 40:          0          0        395          0   PCI-MSI 1048577-edge      eth0-rx-1
- 41:          0          0          0        192   PCI-MSI 1048578-edge      eth0-rx-2
+ 33:          0          0      15839          0   PCI-MSI 2097152-edge      eth0-tx-0
+ 34:          0          0          0       4157   PCI-MSI 2097153-edge      eth0-rx-1
+ 35:          0       3585          0          0   PCI-MSI 2097154-edge      eth0-rx-2
+# ls -la /sys/class/net/eth0/queues/
+total 0
+drwxr-xr-x 5 root root 0 Nov 14 14:22 .
+drwxr-xr-x 5 root root 0 Nov 14 03:56 ..
+drwxr-xr-x 2 root root 0 Nov 14 14:22 rx-0
+drwxr-xr-x 2 root root 0 Nov 14 14:22 rx-1
+drwxr-xr-x 3 root root 0 Nov 14 14:22 tx-0
 ```
