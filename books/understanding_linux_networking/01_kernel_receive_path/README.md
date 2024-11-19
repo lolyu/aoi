@@ -4,7 +4,7 @@
 ### what's kernel net dev backlog queue?
 
 ### will the rx queue IRQ smp affinity cause packet delivery out-of-order?
-The question is, if the smp affinity is like the following:
+The question is, if the smp affinity is like the following, will there be any out-of-order packet delivery?
 ```
 # cat /proc/interrupts
             CPU0       CPU1       CPU2       CPU3
