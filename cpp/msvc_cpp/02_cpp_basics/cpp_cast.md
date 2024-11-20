@@ -23,9 +23,11 @@ int(x); // old-style cast, functional syntax
     * `static_cast`: for casts that are checked at compile time only
         * `static_cast` can also be used to cast between pointer-to-base and pointer-to-derived
             * compiler could not tell whether such conversions will be safe
+        * **`static_cast` can be used to cast between `void *` to `T *`; for any other pointer casting between different types, use `reinterpret_cast`**
     * `dynamic_cast`: safe, runtime-checked cast of pointer-to-base to pointer-to-derived
         * with overhead of the runtime-check
     * `const_cast`: cast away `const`-ness of cast `const`-ness in
     * `reinterpret_cast`: casts between unrelated types
         * cast a pointer to `POD` struct to a pointer to the struct first element
+
 ## references
