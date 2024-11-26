@@ -2,6 +2,7 @@
 
 ## questions
 ### what's kernel net dev backlog queue?
+Refer to [RPS](https://github.com/lolyu/aoi/blob/master/books/understanding_linux_networking/01_kernel_receive_path/RPS.md)
 
 ### will the rx queue IRQ smp affinity cause packet delivery out-of-order?
 The question is, if the smp affinity is like the following, will there be any out-of-order packet delivery?
