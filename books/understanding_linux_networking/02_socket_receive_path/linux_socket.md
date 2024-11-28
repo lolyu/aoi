@@ -214,8 +214,15 @@ lookup_protocol:
 
 ![image](https://github.com/user-attachments/assets/bde67cfd-f543-4df9-8a58-bd5c469ee308)
 
-![image](https://github.com/user-attachments/assets/532ff4d3-cc60-46fe-91da-a81d2cdcb689)
+* `sock_init_data` initialize the `struct sock` object:
+	* set the packet ready callback `sk_data_ready` as `sock_def_readable`
+	* set the socket read timeout default to `MAX_SCHEDULE_TIMEOUT`, which means blocking wait for data.
 
+![image](https://github.com/user-attachments/assets/d6f60f2d-2002-408d-ae20-9debc8c0b769)
+
+
+
+## receive packet from a blocking socket
 
 ## reference
 * https://man7.org/linux/man-pages/man2/socket.2.html
