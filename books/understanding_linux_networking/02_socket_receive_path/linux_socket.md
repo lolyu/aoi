@@ -218,11 +218,217 @@ lookup_protocol:
 	* set the packet ready callback `sk_data_ready` as `sock_def_readable`
 	* set the socket read timeout default to `MAX_SCHEDULE_TIMEOUT`, which means blocking wait for data.
 
-![image](https://github.com/user-attachments/assets/d6f60f2d-2002-408d-ae20-9debc8c0b769)
+![image](https://github.com/user-attachments/assets/6a72edb6-edfd-4ca4-9829-540c790c5f22)
 
 
 
-## receive packet from a blocking socket
+## how does task wait reading from a blocking TCP socket
+```
+recvfrom ->
+sock_recvmsg ->
+__sock_recvmsg ->
+__sock_recvmsg_nosec
+```
+
+### `__sock_recvmsg_nosec`
+```c
+static inline int __sock_recvmsg_nosec(struct kiocb *iocb, struct socket *sock,
+				       struct msghdr *msg, size_t size, int flags)
+{
+	return sock->ops->recvmsg(iocb, sock, msg, size, flags);		// inet_recvmsg in this case
+}
+```
+
+### `inet_recvmsg`
+```c
+int inet_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
+		 size_t size, int flags)
+{
+
+	...
+	err = sk->sk_prot->recvmsg(iocb, sk, msg, size, flags & MSG_DONTWAIT,
+				   flags & ~MSG_DONTWAIT, &addr_len);
+	return err;
+}
+```
+
+### `tcp_recvmsg`
+```c
+int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
+		size_t len, int nonblock, int flags, int *addr_len)
+{
+	int copied = 0;
+	int target;		/* Read at least this many bytes */
+
+	timeo = sock_rcvtimeo(sk, nonblock);					// noblock ? 0 : sk->sk_rcvtimeo;
+	...
+	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
+
+	...
+	do {
+		skb_queue_walk(&sk->sk_receive_queue, skb) {
+			...
+		}
+
+		...
+
+		if (copied >= target) {
+			/* Do not sleep, just process backlog. */
+			release_sock(sk);
+			lock_sock(sk);
+		} else
+			sk_wait_data(sk, &timeo);
+		...
+	}
+	...
+}
+```
+* if no data/not enough data, call `sk_wait_data` to put current process into the wait queue and yield the CPU.
+
+```c
+// net/core/sock.c
+int sk_wait_data(struct sock *sk, long *timeo)
+{
+	int rc;
+	DEFINE_WAIT(wait);																// use current task to define a wait object, use autoremove_wake_function as wake callback
+
+	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);						// put current task into the sock wait queue, and put current task into TASK_INTERRUPTABLE
+	set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	rc = sk_wait_event(sk, timeo, !skb_queue_empty(&sk->sk_receive_queue));			// if current receive queue is empty, reschedule for timeout jiffies
+	clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	finish_wait(sk_sleep(sk), &wait);												// remove current task from the sock wait queue, and put current task into TASK_RUNNING
+	return rc;
+}
+
+// include/linux/wait.h
+#define DEFINE_WAIT_FUNC(name, function)				\
+	wait_queue_t name = {						\
+		.private	= current,				\
+		.func		= function,				\
+		.task_list	= LIST_HEAD_INIT((name).task_list),	\
+	}
+
+#define DEFINE_WAIT(name) DEFINE_WAIT_FUNC(name, autoremove_wake_function)
+```
+
+## how does softirq wakes thread blocking waiting for reading from socket?
+```
+tcp_v4_rcv ->
+tcp_v4_do_rcv ->
+tcp_rcv_established
+```
+### `tcp_rcv_established`
+```c
+int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
+			const struct tcphdr *th, unsigned int len)
+{
+	...
+				eaten = tcp_queue_rcv(sk, skb, tcp_header_len,
+						      &fragstolen);
+			}
+			...
+			sk->sk_data_ready(sk, 0);
+			return 0;
+		}
+	}
+	...
+}
+
+static int __must_check tcp_queue_rcv(struct sock *sk, struct sk_buff *skb, int hdrlen,
+		  bool *fragstolen)
+{
+	int eaten;
+	...
+	if (!eaten) {
+		__skb_queue_tail(&sk->sk_receive_queue, skb);
+		skb_set_owner_r(skb, sk);
+	}
+	return eaten;
+}
+```
+* `sk_data_ready` is `sock_def_readable`
+	* `sock_def_readable` wakes up one thread blocked on the sock wait queue
+ 		* the sync wakeup will yield this CPU to the thread that is blocked.
+```c
+// net/core/sock.c
+static void sock_def_readable(struct sock *sk, int len)
+{
+	struct socket_wq *wq;
+
+	rcu_read_lock();
+	wq = rcu_dereference(sk->sk_wq);
+	if (wq_has_sleeper(wq))													// if sock wait queue is not empty
+		wake_up_interruptible_sync_poll(&wq->wait, POLLIN | POLLPRI |		// wakes up one thread blocked on this socket
+						POLLRDNORM | POLLRDBAND);
+	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
+	rcu_read_unlock();
+}
+```
+```c
+// include/linux/wait.h
+#define wake_up_interruptible_sync_poll(x, m)				\
+	__wake_up_sync_key((x), TASK_INTERRUPTIBLE, 1, (void *) (m))
+// kernel/sched/core.c
+void __wake_up_sync_key(wait_queue_head_t *q, unsigned int mode,
+			int nr_exclusive, void *key)
+{
+	unsigned long flags;
+	int wake_flags = WF_SYNC;
+
+	if (unlikely(!q))
+		return;
+
+	if (unlikely(!nr_exclusive))
+		wake_flags = 0;
+
+	spin_lock_irqsave(&q->lock, flags);
+	__wake_up_common(q, mode, nr_exclusive, wake_flags, key);
+	spin_unlock_irqrestore(&q->lock, flags);
+}
+
+// kernel/sched/core.c
+static void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
+			int nr_exclusive, int wake_flags, void *key)
+{
+	wait_queue_t *curr, *next;
+
+	list_for_each_entry_safe(curr, next, &q->task_list, task_list) {
+		unsigned flags = curr->flags;
+
+		if (curr->func(curr, mode, wake_flags, key) &&
+				(flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
+			break;
+	}
+}
+```
+
+#### `autoremove_wake_function`
+```c
+// kernel/wait.c
+int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
+{
+	int ret = default_wake_function(wait, mode, sync, key);
+
+	if (ret)
+		list_del_init(&wait->task_list);
+	return ret;
+}
+
+// kernel/sched/core.c
+int default_wake_function(wait_queue_t *curr, unsigned mode, int wake_flags,
+			  void *key)
+{
+	return try_to_wake_up(curr->private, mode, wake_flags);
+}
+```
+
+## summary
+* when a thread tries to read from a blocking socket, it will check the socket receive queue first, if there is no packet, it will yield the CPU.
+* after the hard interrupt handler/softirqd puts the packets into the socket receive queue, it will wakes up one thread that is blocked reading from the socket.
+
+* question: how many interrupts?
+	* two, one happens from current blocking thread yields CPU, and one happens when the interrupt handler yields CPU to the blocing thread.
+
 
 ## reference
 * https://man7.org/linux/man-pages/man2/socket.2.html
