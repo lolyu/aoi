@@ -423,7 +423,7 @@ int default_wake_function(wait_queue_t *curr, unsigned mode, int wake_flags,
 ```
 
 ## summary
-* when a thread tries to read from a blocking socket, it will check the socket receive queue first, if there is no packet, it will yield the CPU.
+* when a thread tries to read from a blocking socket, it will check the socket receive queue first, if there is no packet, it will put itself into the socket wait queue and yield the CPU.
 * after the hard interrupt handler/softirqd puts the packets into the socket receive queue, it will wakes up one thread that is blocked reading from the socket.
 
 * question: how many interrupts?
