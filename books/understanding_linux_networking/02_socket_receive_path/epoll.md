@@ -19,7 +19,7 @@
     }
 ```
 * epoll related structures will be like:
-![image](https://github.com/user-attachments/assets/630a9d55-3096-4fdf-a20f-53e2aba686aa)
+![image](https://github.com/user-attachments/assets/9d50b990-241f-4ba1-b402-15f80d03b988)
 
 * the difference with `recv_from` on a blocking socket:
     * with `recv_from` on a blocking socket, the current thread will be inserted into the socket waiting queue with wakeup callback as `autoremove_wake_function`.
@@ -27,8 +27,89 @@
     * with `epoll`, after the socket is added to the `epoll` fd, a mocking wait item (`eppoll_item`) is inserted into the socket waiting queue with wakeup callback as `ep_poll_callback`
         * once there is data available, `ep_poll_callback` will be called, what happened?
 
-## what happened when the socket has data to read?
-* `ep_poll_callback` will be called.
+## what happens when a thread calls `epoll_wait`?
+* `epoll_wait` basically checks if there are ready events in the `eventpoll` ready list:
+	* if yes, return
+	* if not, put current thread into the `eventpoll` wait list and yield the CPU.
+ 		* the wakeup callback is `default_wake_function`
+
+```c
+SYSCALL_DEFINE4(epoll_wait, int, epfd, struct epoll_event __user *, events,
+		int, maxevents, int, timeout)
+{
+	int error;
+	struct fd f;
+	struct eventpoll *ep;
+
+	...
+
+	/* Time to fish for events ... */
+	error = ep_poll(ep, events, maxevents, timeout);
+
+	...
+}
+
+static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
+		   int maxevents, long timeout)
+{
+	wait_queue_t wait;
+
+	...
+
+fetch_events:
+	spin_lock_irqsave(&ep->lock, flags);
+
+	if (!ep_events_available(ep)) {
+		/*
+		 * We don't have any available event to return to the caller.
+		 * We need to sleep here, and we will be wake up by
+		 * ep_poll_callback() when events will become available.
+		 */
+		init_waitqueue_entry(&wait, current);									// if no ready event, init the wait entry with this thread, and use default_wake_function as wakeup callback
+		__add_wait_queue_exclusive(&ep->wq, &wait);
+
+		for (;;) {
+			/*
+			 * We don't want to sleep if the ep_poll_callback() sends us
+			 * a wakeup in between. That's why we set the task state
+			 * to TASK_INTERRUPTIBLE before doing the checks.
+			 */
+			set_current_state(TASK_INTERRUPTIBLE);
+
+			...
+
+			if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS))			// yield the CPU
+				timed_out = 1;
+
+			...
+		}
+		__remove_wait_queue(&ep->wq, &wait);									// wakeup again, remove current thread from the eventpoll wait list
+
+		set_current_state(TASK_RUNNING);
+	}
+check_events:
+	/* Is it worth to try to dig for events ? */
+	eavail = ep_events_available(ep);
+
+	...
+
+	/*
+	 * Try to transfer events to user space. In case we get 0 events and
+	 * there's still timeout left over, we go trying again in search of
+	 * more luck.
+	 */
+	if (!res && eavail &&
+	    !(res = ep_send_events(ep, events, maxevents)) && !timed_out)			// transfer ready events to userspace
+		goto fetch_events;
+
+	return res;
+}
+```
+
+## what happens when the socket has data to read?
+* `ep_poll_callback` will be called:
+	* put current `epitem` to the `eventpoll` ready list
+	* calls one wait thread's wakeup callback, which is `default_wake_function`
 ```c
 static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *key)
 {
@@ -38,7 +119,7 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
     ...
 
 	if (!ep_is_linked(&epi->rdllink)) {
-		list_add_tail(&epi->rdllink, &ep->rdllist);                                // add the
+		list_add_tail(&epi->rdllink, &ep->rdllist);                                // add the epitem to the eventpoll ready list
 	}
 
 	/*
@@ -52,5 +133,26 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 }
 ```
 
+## summary
+
+![image](https://github.com/user-attachments/assets/836c0847-544d-4686-b241-0ddfb3b30fb4)
+
+### FAQ
+
+#### why `epoll` is efficient compared to blocking I/O?
+* **for blocking I/O, if there is no data, the thread will yield the CPU**.
+	* two context switch, one for the thread yield the CPU, one for the I/O ready and the thread is rescheduled.
+* `epoll` enables the thread/process to focus on the I/O without unneccessary context switch.
+	* as long as there are many sockets to work with, the thread calling `epoll_wait` will unlikely to wait and yield the CPU, it will be busy handling with the ready I/O events.
+
+#### what's the purpose of red-black tree used in `epoll`?
+* the red-black tree is used to manage the sockets added to the `eventpoll`.
+* the red-black tree can be replaced by other data structures like hash table, AVL tree.
+* the red-black tree wins because:
+	* costs less space than hash table
+ 	* costs less with `epoll` as `epoll` operates the tree with more insertion/deletion than lookup.
+		* for insert/delete intensive tasks, use red-black trees
+  		* for lookup intensive tasks, use OVL trees
+
 ## references
-* 
+* https://stackoverflow.com/questions/13852870/red-black-tree-over-avl-tree
