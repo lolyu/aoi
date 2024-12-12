@@ -235,6 +235,20 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 
 ![image](https://github.com/user-attachments/assets/836c0847-544d-4686-b241-0ddfb3b30fb4)
 
+* two key structures:
+	* `eventpoll`: poll manager
+ 	* `epitem`: represent a polling item, one-to-one mapping to a socket.
+* when a socket is added to the `eventpoll`:
+	* an `epitem` is created to represent this socket.
+ 	* the `epitem` is added to the socket wait queue with callback as `ep_poll_callback`
+* when a thread calls `epoll_wait`:
+	* if there are `epitem`s in the ready list, retrieve the ready data.
+ 	* if not, put current thread into the `eventpoll` wait queue with callback as `default_wake_function`
+* when the socket receives packets:
+	* calls the in-the-socket-wait-queue `epitem` callback `ep_poll_callback`, which does the following:
+ 		* put this socket's `epitem` into the ready list
+		* calls the in-the-eventpoll-wait-queue thread's callback `default_wake_function` to wakeup the blocking thread.
+
 ### FAQ
 
 #### why `epoll` is efficient compared to blocking I/O?
@@ -244,7 +258,7 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 	* as long as there are many sockets to work with, the thread calling `epoll_wait` will unlikely to wait and yield the CPU, it will be busy handling with the ready I/O events.
 
 #### what's the purpose of red-black tree used in `epoll`?
-* the red-black tree is used to manage the sockets added to the `eventpoll`.
+* the red-black tree is used to manage the `epitem` added to the `eventpoll`.
 * the red-black tree can be replaced by other data structures like hash table, AVL tree.
 * the red-black tree wins because:
 	* costs less space than hash table
