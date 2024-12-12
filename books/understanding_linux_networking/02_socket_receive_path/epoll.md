@@ -106,6 +106,104 @@ check_events:
 }
 ```
 
+### how does `epoll_wait` sends the events to user?
+```c
+static int ep_send_events(struct eventpoll *ep,
+			  struct epoll_event __user *events, int maxevents)
+{
+	struct ep_send_events_data esed;
+
+	esed.maxevents = maxevents;
+	esed.events = events;
+
+	return ep_scan_ready_list(ep, ep_send_events_proc, &esed, 0);
+}
+
+static int ep_scan_ready_list(struct eventpoll *ep,
+			      int (*sproc)(struct eventpoll *,
+					   struct list_head *, void *),
+			      void *priv,
+			      int depth)
+{
+	int error, pwake = 0;
+	...
+	LIST_HEAD(txlist);
+
+	/*
+	 * Steal the ready list, and re-init the original one to the
+	 * empty list. Also, set ep->ovflist to NULL so that events
+	 * happening while looping w/out locks, are not lost. We cannot
+	 * have the poll callback to queue directly on ep->rdllist,
+	 * because we want the "sproc" callback to be able to do it
+	 * in a lockless way.
+	 */
+	list_splice_init(&ep->rdllist, &txlist);
+
+	...
+	error = (*sproc)(ep, &txlist, priv);
+	...
+}
+
+static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
+			       void *priv)
+{
+	struct ep_send_events_data *esed = priv;
+	int eventcnt;
+	unsigned int revents;
+	struct epitem *epi;
+	struct epoll_event __user *uevent;
+	struct wakeup_source *ws;
+	poll_table pt;
+
+	init_poll_funcptr(&pt, NULL);
+
+	for (eventcnt = 0, uevent = esed->events;
+	     !list_empty(head) && eventcnt < esed->maxevents;) {
+		epi = list_first_entry(head, struct epitem, rdllink);
+
+		...
+
+		revents = ep_item_poll(epi, &pt);
+
+		/*
+		 * If the event mask intersect the caller-requested one,
+		 * deliver the event to userspace. Again, ep_scan_ready_list()
+		 * is holding "mtx", so no operations coming from userspace
+		 * can change the item.
+		 */
+		if (revents) {
+			if (__put_user(revents, &uevent->events) ||
+			    __put_user(epi->event.data, &uevent->data)) {
+				list_add(&epi->rdllink, head);
+				ep_pm_stay_awake(epi);
+				return eventcnt ? eventcnt : -EFAULT;
+			}
+			eventcnt++;
+			uevent++;
+			if (epi->event.events & EPOLLONESHOT)
+				epi->event.events &= EP_PRIVATE_BITS;
+			else if (!(epi->event.events & EPOLLET)) {						// if level triggerd, put the socket back to the ready list
+				/*
+				 * If this file has been added with Level
+				 * Trigger mode, we need to insert back inside
+				 * the ready list, so that the next call to
+				 * epoll_wait() will check again the events
+				 * availability. At this point, no one can insert
+				 * into ep->rdllist besides us. The epoll_ctl()
+				 * callers are locked out by
+				 * ep_scan_ready_list() holding "mtx" and the
+				 * poll callback will queue them in ep->ovflist.
+				 */
+				list_add_tail(&epi->rdllink, &ep->rdllist);
+				ep_pm_stay_awake(epi);
+			}
+		}
+	}
+
+	return eventcnt;
+}
+```
+
 ## what happens when the socket has data to read?
 * `ep_poll_callback` will be called:
 	* put current `epitem` to the `eventpoll` ready list
