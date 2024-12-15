@@ -30,7 +30,6 @@
 
 ![image](https://user-images.githubusercontent.com/35479537/199652433-5ba75774-2800-4581-b059-2d71c8c94019.png)
 
-
 ## proactor pattern
 * the proactor pattern allows event-driven applications to demultiplex and dispatch service requests in an efficient asynchronous way.
 * non-blocking asynchronous I/O strategy
@@ -77,6 +76,11 @@
         * calls the asynchronous even demultiplexer to dequeue events and dispatch the completion handler associated with this event
         * this abstraction is represented by `io_service` class 
 
+## reactor vs proactor
+* reactor: works in nonblocking synchronous mode, detects the readiness of I/O
+    * users needs to take care of the I/O
+* proactor: works in asynchronous mode, detects the finish of I/O
+    * the user doesn't need to take care of the I/O
 
 ## references
 * http://www.diranieh.com/DP/POSA_Reactor.htm
