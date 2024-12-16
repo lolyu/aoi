@@ -156,9 +156,11 @@ unsigned char *skb_push(struct sk_buff *skb, unsigned int len)
 	* reserve enough bytes for the headers
  	* to write packet headers, decrease `data`
 	* to write packet contents, increase `tail`
+ 
 ![image](https://github.com/user-attachments/assets/9b7bda4b-6540-4729-9e9a-37145d431d15)
 
 * a IP packet buffer layout:
+
 ![image](https://github.com/user-attachments/assets/18a16e61-347f-406d-94a2-a660acd8e3c8)
 
 
