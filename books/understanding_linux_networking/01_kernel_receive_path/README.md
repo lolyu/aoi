@@ -1,8 +1,29 @@
 # kernel receive path
 
 ## questions
-### what's kernel net dev backlog queue?
-Refer to [RPS](https://github.com/lolyu/aoi/blob/master/books/understanding_linux_networking/01_kernel_receive_path/RPS.md)
+### what's RSS (receive side scaling)?
+* `RSS` determines which rx queue receives the packet and hence the CPU that will run the hardware interrupt handler.
+	* each receive queue has a separate IRQ associated with it. The NIC triggers this to notify a CPU when new packets arrive on the given queue.
+
+### what's RPS (receive packet steering)?
+* `RPS` selects which CPU to perform protocol processing above the interrupt handler.
+	* after the `ksoftirqd` on the CPU that handles the IRQ for the rx queue polls packets from the rx queue, it hashes the packets and directs them to the corresponding CPU's backlog queue.
+
+### what's `/proc/net/softnet_stat`?
+* `/proc/net/softnet_stat` stores statistics that relate to `softirq`'s handling of network packets.
+```
+$ cat /proc/net/softnet_stat
+0009dbb7 00000000 00000001 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+000a9fd6 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000001
+000a1744 0000001b 00000008 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000002
+000b054e 00000000 00000001 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000003
+```
+* each line of `/proc/net/softnetstat` corresponds to a per-cpu `struct softnet_data` structure.
+	* the first value is `softnet_data.processed`
+ 	* the second value is `softnet_data.dropped`
+	* the third value is `softnet_data.time_squeezed`
+* the `softnet_data.dropped` is increased when the CPU's backlog queue has no room to store packets.
+	* Refer to [RPS](https://github.com/lolyu/aoi/blob/master/books/understanding_linux_networking/01_kernel_receive_path/RPS.md)
 
 ### will the rx queue IRQ smp affinity cause packet delivery out-of-order?
 The question is, if the smp affinity is like the following, will there be any out-of-order packet delivery?
