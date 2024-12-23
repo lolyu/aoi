@@ -109,7 +109,7 @@ static inline int skb_add_data_nocache(struct sock *sk, struct sk_buff *skb,
 ```
 * `skb_put` will try to find the next user data insert position in `sk_buff`
 
-```
+```c
 /**
  *	skb_put - add data to a buffer
  *	@skb: buffer to use
