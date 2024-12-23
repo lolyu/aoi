@@ -90,6 +90,16 @@ static void net_rx_action(struct softirq_action *h)
     ...
 ```
 
+### how to check kernel receive packet drop?
+* possible drop situations:
+	* NiC buffer overrun
+		* `ethtool -S eth0`
+ 	* `RPS` CPU backlog queue drop
+		* `/proc/net/softnet_stat`
+  	* socket queue drop
+		* `ss -mnp`
+
+
 ## references
 * [1] https://lore.kernel.org/netdev/a5c6e92f-cc59-0214-56f6-66632c5e59c2@bursov.com/T/
 * [2] https://docs.kernel.org/networking/scaling.html
