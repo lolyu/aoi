@@ -163,6 +163,101 @@ unsigned char *skb_push(struct sk_buff *skb, unsigned int len)
 
 ![image](https://github.com/user-attachments/assets/18a16e61-347f-406d-94a2-a660acd8e3c8)
 
+## `dev_queue_xmit`
+
+```c
+int dev_queue_xmit(struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+	struct netdev_queue *txq;
+	struct Qdisc *q;
+
+	...
+
+	txq = netdev_pick_tx(dev, skb);					// get the tx queue
+	q = rcu_dereference_bh(txq->qdisc);				// get the qdisc of the tx queue
+
+	trace_net_dev_queue(skb);
+	if (q->enqueue) {
+		rc = __dev_xmit_skb(skb, q, dev, txq);
+		goto out;
+	}
+
+	...	
+}
+```
+```c
+// include/net/sch_generic.h
+struct Qdisc_ops {
+	struct Qdisc_ops	*next;
+	const struct Qdisc_class_ops	*cl_ops;
+	char			id[IFNAMSIZ];
+	int			priv_size;
+
+	int 			(*enqueue)(struct sk_buff *, struct Qdisc *);
+	struct sk_buff *	(*dequeue)(struct Qdisc *);
+	struct sk_buff *	(*peek)(struct Qdisc *);
+	unsigned int		(*drop)(struct Qdisc *);
+
+	int			(*init)(struct Qdisc *, struct nlattr *arg);
+	void			(*reset)(struct Qdisc *);
+	void			(*destroy)(struct Qdisc *);
+	int			(*change)(struct Qdisc *, struct nlattr *arg);
+	void			(*attach)(struct Qdisc *);
+
+	int			(*dump)(struct Qdisc *, struct sk_buff *);
+	int			(*dump_stats)(struct Qdisc *, struct gnet_dump *);
+
+	struct module		*owner;
+};
+
+// net/sched/sch_mq.c
+struct Qdisc_ops mq_qdisc_ops __read_mostly = {						// mq has no queue, so no "enqueue"
+	.cl_ops		= &mq_class_ops,
+	.id		= "mq",
+	.priv_size	= sizeof(struct mq_sched),
+	.init		= mq_init,
+	.destroy	= mq_destroy,
+	.attach		= mq_attach,
+	.dump		= mq_dump,
+	.owner		= THIS_MODULE,
+};
+```
+* `tc qdisc` shows the device output queue disciplines:
+```
+$ sudo tc qdisc
+qdisc noqueue 0: dev lo root refcnt 2
+qdisc mq 0: dev eth0 root
+qdisc fq_codel 0: dev eth0 parent :1 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 32Mb ecn drop_batch 64
+qdisc noqueue 0: dev docker0 root refcnt 2
+qdisc noqueue 0: dev PortChannel101 root refcnt 2
+qdisc noqueue 0: dev PortChannel102 root refcnt 2
+qdisc noqueue 0: dev PortChannel103 root refcnt 2
+qdisc noqueue 0: dev PortChannel104 root refcnt 2
+qdisc noqueue 0: dev Bridge root refcnt 2
+qdisc noqueue 0: dev Vlan1000 root refcnt 2
+qdisc noqueue 0: dev Loopback0 root refcnt 2
+qdisc noqueue 0: dev Loopback1 root refcnt 2
+qdisc noqueue 0: dev Loopback2 root refcnt 2
+qdisc noqueue 0: dev Loopback3 root refcnt 2
+qdisc noqueue 0: dev tun0 root refcnt 2
+qdisc fq_codel 0: dev Ethernet4 root refcnt 2 limit 10240p flows 1024 quantum 9114 target 5ms interval 100ms memory_limit 32Mb ecn drop_batch 64
+qdisc fq_codel 0: dev Ethernet8 root refcnt 2 limit 10240p flows 1024 quantum 9114 target 5ms interval 100ms memory_limit 32Mb ecn drop_batch 64
+qdisc fq_codel 0: dev Ethernet12 root refcnt 2 limit 10240p flows 1024 quantum 9114 target 5ms interval 100ms memory_limit 32Mb ecn drop_batch 64
+
+$ sudo tc qdisc
+qdisc noqueue 0: dev lo root refcnt 2
+qdisc mq 0: dev eth0 root
+qdisc pfifo_fast 0: dev eth0 parent :8 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+qdisc pfifo_fast 0: dev eth0 parent :7 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+qdisc pfifo_fast 0: dev eth0 parent :6 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+qdisc pfifo_fast 0: dev eth0 parent :5 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+qdisc pfifo_fast 0: dev eth0 parent :4 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+qdisc pfifo_fast 0: dev eth0 parent :3 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+qdisc pfifo_fast 0: dev eth0 parent :2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+qdisc pfifo_fast 0: dev eth0 parent :1 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
+```
+
 
 ## references
 * http://oldvger.kernel.org/~davem/tcp_output.html
