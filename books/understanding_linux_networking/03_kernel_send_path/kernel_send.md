@@ -3,6 +3,8 @@
 ```
 sendto -> sock_sendmsg -> __sock_sendmsg -> __sock_sendmsg_nosec -> inet_sendmsg -> tcp_sendmsg
 ```
+![image](https://github.com/user-attachments/assets/5ab3b7f6-8096-4635-a0de-ac4a4ae91bd8)
+
 
 ## `tcp_sendmsg`
 
@@ -174,8 +176,8 @@ int dev_queue_xmit(struct sk_buff *skb)
 
 	...
 
-	txq = netdev_pick_tx(dev, skb);					// get the tx queue
-	q = rcu_dereference_bh(txq->qdisc);				// get the qdisc of the tx queue
+	txq = netdev_pick_tx(dev, skb);					// get the tx queue based on the XPS config
+	q = rcu_dereference_bh(txq->qdisc);				// get the qdisc of the tx queue, the default is pfifo_fast
 
 	trace_net_dev_queue(skb);
 	if (q->enqueue) {
@@ -209,6 +211,56 @@ struct Qdisc_ops {
 	int			(*dump_stats)(struct Qdisc *, struct gnet_dump *);
 
 	struct module		*owner;
+};
+
+struct Qdisc {
+	int 			(*enqueue)(struct sk_buff *skb, struct Qdisc *dev);
+	struct sk_buff *	(*dequeue)(struct Qdisc *dev);
+	unsigned int		flags;
+#define TCQ_F_BUILTIN		1
+#define TCQ_F_INGRESS		2
+#define TCQ_F_CAN_BYPASS	4
+#define TCQ_F_MQROOT		8
+#define TCQ_F_ONETXQUEUE	0x10 /* dequeue_skb() can assume all skbs are for
+				      * q->dev_queue : It can test
+				      * netif_xmit_frozen_or_stopped() before
+				      * dequeueing next packet.
+				      * Its true for MQ/MQPRIO slaves, or non
+				      * multiqueue device.
+				      */
+#define TCQ_F_WARN_NONWC	(1 << 16)
+	int			padded;
+	const struct Qdisc_ops	*ops;
+	struct qdisc_size_table	__rcu *stab;
+	struct list_head	list;
+	u32			handle;
+	u32			parent;
+	atomic_t		refcnt;
+	struct gnet_stats_rate_est	rate_est;
+	int			(*reshape_fail)(struct sk_buff *skb,
+					struct Qdisc *q);
+
+	void			*u32_node;
+
+	/* This field is deprecated, but it is still used by CBQ
+	 * and it will live until better solution will be invented.
+	 */
+	struct Qdisc		*__parent;
+	struct netdev_queue	*dev_queue;
+	struct Qdisc		*next_sched;
+
+	struct sk_buff		*gso_skb;
+	/*
+	 * For performance sake on SMP, we put highly modified fields at the end
+	 */
+	unsigned long		state;
+	struct sk_buff_head	q;
+	struct gnet_stats_basic_packed bstats;
+	unsigned int		__state;
+	struct gnet_stats_queue	qstats;
+	struct rcu_head		rcu_head;
+	spinlock_t		busylock;
+	u32			limit;
 };
 
 // net/sched/sch_mq.c
@@ -258,6 +310,192 @@ qdisc pfifo_fast 0: dev eth0 parent :2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1
 qdisc pfifo_fast 0: dev eth0 parent :1 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1
 ```
 
+## `__dev_xmit_skb`
+```c
+static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
+				 struct net_device *dev,
+				 struct netdev_queue *txq)
+{
+	spinlock_t *root_lock = qdisc_lock(q);
+	bool contended;
+	int rc;
+
+	...
+	if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
+		kfree_skb(skb);
+		rc = NET_XMIT_DROP;
+	} else if ((q->flags & TCQ_F_CAN_BYPASS) && !qdisc_qlen(q) &&
+		   qdisc_run_begin(q)) {
+		/*
+		 * This is a work-conserving queue; there are no old skbs
+		 * waiting to be sent out; and the qdisc is not running -
+		 * xmit the skb directly.
+		 */
+		if (!(dev->priv_flags & IFF_XMIT_DST_RELEASE))
+			skb_dst_force(skb);
+
+		qdisc_bstats_update(q, skb);
+
+		if (sch_direct_xmit(skb, q, dev, txq, root_lock)) {
+			if (unlikely(contended)) {
+				spin_unlock(&q->busylock);
+				contended = false;
+			}
+			__qdisc_run(q);
+		} else
+			qdisc_run_end(q);
+
+		rc = NET_XMIT_SUCCESS;
+	} else {
+		skb_dst_force(skb);
+		rc = q->enqueue(skb, q) & NET_XMIT_MASK;
+		if (qdisc_run_begin(q)) {
+			if (unlikely(contended)) {
+				spin_unlock(&q->busylock);
+				contended = false;
+			}
+			__qdisc_run(q);
+		}
+	}
+	spin_unlock(root_lock);
+	if (unlikely(contended))
+		spin_unlock(&q->busylock);
+	return rc;
+}
+```
+* `__qdisc_run` continues sending queued packets until:
+	1. runs out of quota
+ 	2. needs reschedule 	
+```c
+void __qdisc_run(struct Qdisc *q)
+{
+	int quota = weight_p;
+
+	while (qdisc_restart(q)) {
+		/*
+		 * Ordered by possible occurrence: Postpone processing if
+		 * 1. we've exceeded packet quota
+		 * 2. another process needs the CPU;
+		 */
+		if (--quota <= 0 || need_resched()) {
+			__netif_schedule(q);
+			break;
+		}
+	}
+
+	qdisc_run_end(q);
+}
+
+static inline int qdisc_restart(struct Qdisc *q)
+{
+	struct netdev_queue *txq;
+	struct net_device *dev;
+	spinlock_t *root_lock;
+	struct sk_buff *skb;
+
+	/* Dequeue packet */
+	skb = dequeue_skb(q);
+	if (unlikely(!skb))
+		return 0;
+	WARN_ON_ONCE(skb_dst_is_noref(skb));
+	root_lock = qdisc_lock(q);
+	dev = qdisc_dev(q);
+	txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
+
+	return sch_direct_xmit(skb, q, dev, txq, root_lock);
+}
+```
+
+## raise tx softirq
+* **NOTE**: `output_queue_tailp` is a double pointer that stores to the address of next output queue
+```c
+static inline void __netif_reschedule(struct Qdisc *q)
+{
+	struct softnet_data *sd;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	sd = &__get_cpu_var(softnet_data);
+	q->next_sched = NULL;
+	*sd->output_queue_tailp = q;						// append `q` to the tail of output queue
+	sd->output_queue_tailp = &q->next_sched;			// reset output_queue_tailp to the tail of output queue, which is the next_sched of the appended `q`
+	raise_softirq_irqoff(NET_TX_SOFTIRQ);
+	local_irq_restore(flags);
+}
+
+void __netif_schedule(struct Qdisc *q)
+{
+	if (!test_and_set_bit(__QDISC_STATE_SCHED, &q->state))
+		__netif_reschedule(q);
+}
+```
+
+```c
+struct softnet_data {
+	struct Qdisc		*output_queue;
+	struct Qdisc		**output_queue_tailp;
+	struct list_head	poll_list;
+	...
+};
+```
+
+### `net_tx_action`
+* `net_tx_action` retrieves output queue from per-cpu `softnet_data`, and send the packets stored in each queue.
+```c
+static void net_tx_action(struct softirq_action *h)
+{
+	struct softnet_data *sd = &__get_cpu_var(softnet_data);
+
+	...
+
+	if (sd->output_queue) {
+		struct Qdisc *head;
+
+		head = sd->output_queue;
+		sd->output_queue = NULL;
+		sd->output_queue_tailp = &sd->output_queue;
+
+		while (head) {
+			struct Qdisc *q = head;
+			head = head->next_sched;
+			qdisc_run(q);
+		}
+	}
+}
+```
+
+## tx buffer cleanup
+* when the NIC finishes sending packets, it will trigger a hardware IRQ.
+	* the IRQ handler is `igb_msix_ring` for both rx and tx ring
+
+```c
+static irqreturn_t igb_msix_ring(int irq, void *data)
+{
+	struct igb_q_vector *q_vector = data;
+
+	/* Write the ITR value calculated from the previous interrupt. */
+	igb_write_itr(q_vector);
+
+	napi_schedule(&q_vector->napi);
+
+	return IRQ_HANDLED;
+}
+
+static int igb_poll(struct napi_struct *napi, int budget)
+{
+	struct igb_q_vector *q_vector = container_of(napi,
+						     struct igb_q_vector,
+						     napi);
+	bool clean_complete = true;
+	...
+	if (q_vector->tx.ring)
+		clean_complete = igb_clean_tx_irq(q_vector);		// cleanup the tx buffer
+
+	...
+
+	return 0;
+}
+```
 
 ## references
 * http://oldvger.kernel.org/~davem/tcp_output.html
