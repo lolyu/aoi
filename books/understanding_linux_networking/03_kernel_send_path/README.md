@@ -70,6 +70,6 @@ eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
 ```
 * two reasons:
     1. when the NIC finishes sending packets, it will trigger a hardware IRQ, which in turn triggers a `NET_RX_SOFTIRQ` to cleanup the tx buffer.
-    2. the process that is sending packets finishes the packet sending in its kernel mode without the help of `softirqd`.
+    2. the process that is sending packets finishes most of the packet sending in its kernel mode without the help of `softirqd`.
 
 
