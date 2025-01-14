@@ -42,14 +42,15 @@ int inet_listen(struct socket *sock, int backlog)
 		err = inet_csk_listen_start(sk, backlog);
         ...
 	}
-	sk->sk_max_ack_backlog = backlog;
+	sk->sk_max_ack_backlog = backlog;			// the length of accept queue
 	err = 0;
 
     ...
 	return err;
 }
 ```
-* `sk_max_ack_backlog
+
+* `sk_max_ack_backlog` is the length of accept queue, is `min(backlog, somaxconn)`
 
 ## allocate queue
 ```c
@@ -86,7 +87,8 @@ int inet_csk_listen_start(struct sock *sk, const int nr_table_entries)
 	return -EADDRINUSE;
 }
 ```
-* the relationship between `sock_common`, `sock`, `inet_sock`, `inet_connection_sock`, and `tcp_sock`
+* the relationship between `sock_common`, `sock`, `inet_sock`, `inet_connection_sock`, and `tcp_sock`:
+
 ![image](https://github.com/user-attachments/assets/b7bdc628-5d36-43c4-b18f-8f8cf9307263)
 
 ```c
