@@ -5,7 +5,7 @@
 
 ## three way handshake
 
-https://user-content.gitlab-static.net/d1f2cbdbc064b2cfa0acc4fe483cd8fd4fac931c/687474703a2f2f746370697067756964652e636f6d2f667265652f6469616772616d732f7463706f70656e337761792e706e67
+![image](https://github.com/user-attachments/assets/6b88da35-44e3-4945-be3c-fd9b074cbf8a)
 
 1. the server changes status to `LISTEN`
 2. the client sends a syn packet with `SYN=1` and `seq=x`, and changes status to `SYN-SENT`
