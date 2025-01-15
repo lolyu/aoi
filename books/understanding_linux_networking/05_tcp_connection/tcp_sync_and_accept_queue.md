@@ -165,6 +165,33 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 }
 ```
 
+## questions
+### how to check the sync queue size?
+* there is no direct system metrics, but the number of `SYN_RCVD` state sockets can be get by `netstat`
+```
+# netstat -antp | grep SYN_RECV | wc -l
+102
+```
+
+### how to check the accept queue size?
+* the accept queue size is listed as `Send-Q` for the `LISTEN` sockets.
+```
+ss -lnt                                                                                                       255 ↵
+State        Recv-Q        Send-Q                Local Address:Port               Peer Address:Port       Process
+LISTEN       0             4096                     127.0.0.54:53                      0.0.0.0:*
+LISTEN       0             1000                 10.255.255.254:53                      0.0.0.0:*
+LISTEN       0             4096                  127.0.0.53%lo:53                      0.0.0.0:*
+```
+
+### what is listen drop and listen overflow?
+* `listen overflow` means Linux cannot take more requests due to the accept queue is full.
+* `listen drop` means Linux cannot take more requests; this can happen for many reasons, like cannot allocate memory for new requests, accept queue is full, etc.
+* `listen drop` and `listen overflow` can be checked via `netstat`:
+```
+# netstat -s | grep -i listen
+    545772 times the listen queue of a socket overflowed		# listen overflow
+    545776 SYNs to LISTEN sockets dropped						# listen drop
+```
 ## references
 * https://arthurchiao.art/blog/tcp-listen-a-tale-of-two-queues/
 * https://www.alibabacloud.com/blog/tcp-syn-queue-and-accept-queue-overflow-explained_599203
