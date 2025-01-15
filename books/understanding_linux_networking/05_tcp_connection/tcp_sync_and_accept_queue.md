@@ -1,7 +1,9 @@
 # TCP syn and accept queue
 * this note focuses on what's the function of `listen` and the TCP syn and accept queue.
     * **sync queue**: stores connection requests (one connection request per `SYN` packet.)
+		* TCP connections in `SYN-RCVD`
     * **accept queue**: stores fully established connections (but haven't been `accept()`ed by the application code)
+		* TCP connections in `ESTABLISHED` but not accepted.
 
 ## listen
 ```c
