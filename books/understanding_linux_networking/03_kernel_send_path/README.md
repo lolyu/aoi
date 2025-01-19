@@ -1,6 +1,13 @@
 # kernel send path
 
 ## questions
+### how many buffering in the socket send path?
+* two:
+	* socket write queue
+  		* check by `ss -mntp`
+		* the queue length is default to `/proc/sys/net/core/wmem_default`
+ 	* device output queue
+
 ### does softirq handles all packet sending?
 * No, the process finishes most of the packets' sending without the the help from `softirqd`.
 ```c
