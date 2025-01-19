@@ -7,6 +7,7 @@
   		* check by `ss -mntp`
 		* the queue length is default to `/proc/sys/net/core/wmem_default`
  	* device output queue
+		* check by `ip -s link show eth0`, the `qlen` is the queue length for each queue
 
 ### does softirq handles all packet sending?
 * No, the process finishes most of the packets' sending without the the help from `softirqd`.
