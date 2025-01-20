@@ -74,7 +74,7 @@ struct inet_hashinfo {
 ![image](https://github.com/user-attachments/assets/a1b615a0-7b90-4925-800d-a1b51f269f8b)
 
 ### `inet_hash_connect`
-```
+```c
 int inet_hash_connect(struct inet_timewait_death_row *death_row,
 		      struct sock *sk)
 {
