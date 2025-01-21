@@ -103,7 +103,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 
         ...
 
-		tcp_finish_connect(sk, skb);
+		tcp_finish_connect(sk, skb);										// set socket to ESTABLISHED and start tcp congestion control
 
 		if ((tp->syn_fastopen || tp->syn_data) &&
 		    tcp_rcv_fastopen_synack(sk, skb, &foc))
@@ -114,7 +114,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		    icsk->icsk_ack.pingpong) {
             ...
 		} else {
-			tcp_send_ack(sk);
+			tcp_send_ack(sk);												// send ACK to SYNACK
 		}
 		return -1;
 	}
@@ -122,4 +122,77 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
     ...
 }
 
+```
+
+## server respond to `ACK`
+* `tcp_v4_do_rcv`:
+	* when the server recevies first `SYN` or the `ACK` to the `SYNACK`, its sock state is `TCP_LISTEN`, and it always calls `tcp_v4_hnd_req`
+```c
+int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
+{
+	struct sock *rsk;
+	...
+
+	if (sk->sk_state == TCP_LISTEN) {
+		struct sock *nsk = tcp_v4_hnd_req(sk, skb);
+
+		if (nsk != sk) {
+			...
+			if (tcp_child_process(sk, nsk, skb)) {
+				rsk = nsk;
+				goto reset;
+			}
+			return 0;
+		}
+	}
+```
+* `tcp_v4_hnd_req`:
+	* find the listen socket from the `LISTEN` queue
+ 	* calls `tcp_check_req` to create a new sock
+  		* the new sock is in state `TCP_SYN_RECV`
+```c
+static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
+{
+	...
+	/* Find possible connection requests. */
+	struct request_sock *req = inet_csk_search_req(sk, &prev, th->source,
+						       iph->saddr, iph->daddr);
+	if (req)
+		return tcp_check_req(sk, skb, req, prev, false);
+	...
+}
+
+struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
+			   struct request_sock *req,
+			   struct request_sock **prev,
+			   bool fastopen)
+{
+	...
+	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);		// tcp_v4_syn_recv_sock
+	if (child == NULL)
+		goto listen_overflow;
+
+	inet_csk_reqsk_queue_unlink(sk, req, prev);									// remove from listen queue
+	inet_csk_reqsk_queue_removed(sk, req);
+	inet_csk_reqsk_queue_add(sk, req, child);									// add to accept queue
+	return child;
+	...
+}
+```
+* `tcp_child_process`:
+```
+int tcp_child_process(struct sock *parent, struct sock *child,
+		      struct sk_buff *skb)
+{
+	int ret = 0;
+	int state = child->sk_state;
+
+	if (!sock_owned_by_user(child)) {
+		ret = tcp_rcv_state_process(child, skb, tcp_hdr(skb),					// changes to ESTABLISHED
+					    skb->len);
+		...
+	}
+	...
+	return ret;
+}
 ```
