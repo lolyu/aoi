@@ -2,8 +2,8 @@
 
 ![image](https://github.com/user-attachments/assets/e39d8d6e-3614-4183-8293-c610d134e50c)
 
-
-## client connect
+## steps
+### client connect
 * `tcp_connect`
     * set the socket state to `SYN_SENT`
     * select a source port
@@ -38,7 +38,7 @@ int tcp_connect(struct sock *sk)
 }
 ```
 
-## server responds and sends `SYNACK`
+### server responds and sends `SYNACK`
 * `tcp_v4_do_rcv` -> `tcp_rcv_state_process` -> `tcp_v4_conn_request`
 *  `tcp_v4_conn_request`
     * if the listen queue is full, drop
@@ -86,7 +86,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 }
 ```
 
-## client responds to `SYNACK`
+### client responds to `SYNACK`
 * `tcp_v4_do_rcv` -> `tcp_rcv_state_process` -> `tcp_rcv_synsent_state_process`
 
 ```c
@@ -124,7 +124,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 
 ```
 
-## server respond to `ACK`
+### server respond to `ACK`
 * `tcp_v4_do_rcv`:
 	* when the server recevies first `SYN` or the `ACK` to the `SYNACK`, its sock state is `TCP_LISTEN`, and it always calls `tcp_v4_hnd_req`
 ```c
