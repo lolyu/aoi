@@ -12,7 +12,7 @@
             * reuse connections - use "long" connection
     * first `SYN` packet is dropped by server
         * **symptom**: the client will try to retransimit the `SYN` with backoff timer (1s, 2s, 4s, 8s...)
-        * **why***: Linux drops `SYN` packet in the following two situations:
+        * **why**: Linux drops `SYN` packet in the following two situations:
             * the listen queue is full and `tcp_syncookie` is not enabled
             * the accept queue is full
         * the client retransimission is controlled by `net.ipv4.tcp_syn_retries`
