@@ -8,6 +8,7 @@
     * `struct task_struct`: the Linux task, each task has a file descriptor table
     * `struct files_struct`: manages the file descriptors with overall state and metadata
     * `struct fdtable`: low-level structure that manages the mapping of file descriptors to file objects.
+	* `struct dentry`: glue together the file and its `inode` together(`inode` is the file meta-data).
 
 ```c
 struct fdtable {
@@ -20,7 +21,6 @@ struct fdtable {
 ```
  
 ## socket create process
-
 ```c
 SYSCALL_DEFINE3(socket, int, family, int, type, int, protocol)
 {
@@ -37,7 +37,7 @@ SYSCALL_DEFINE3(socket, int, family, int, type, int, protocol)
 
 ### `sock_create`
 * `sock_create` -> `__sock_create`
-* `sock_create` creates the `struct socket_alloc` and returns the `socket` part:
+* `sock_create` creates the `struct socket_alloc` and returns the `socket` part; also, it creates the `struct sock` based on the protocol as `sock->sk`.
 ```c
 struct socket_alloc {
 	struct socket socket;
@@ -153,6 +153,80 @@ static int expand_files(struct files_struct *files, int nr)
 1024
 # ulimit -nH
 1048576
+```
+
+#### `sock_alloc_file`
+* `sock_alloc_file` allocates the `struct file` objects and stores in the `sock->file`.
+```c
+struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
+{
+	struct qstr name = { .name = "" };
+	struct path path;
+	struct file *file;
+
+	...
+	path.dentry = d_alloc_pseudo(sock_mnt->mnt_sb, &name);					// create the dentry
+	...
+	d_instantiate(path.dentry, SOCK_INODE(sock));							// bind the dentry with the inode
+	SOCK_INODE(sock)->i_fop = &socket_file_ops;
+
+	file = alloc_file(&path, FMODE_READ | FMODE_WRITE,						// create the file object
+		  &socket_file_ops);
+
+	sock->file = file;														// bind the file to the socket
+	file->f_flags = O_RDWR | (flags & O_NONBLOCK);
+	file->private_data = sock;
+	return file;
+}
+```
+
+```c
+struct file *alloc_file(struct path *path, fmode_t mode,
+		const struct file_operations *fop)
+{
+	struct file *file;
+
+	file = get_empty_filp();
+	if (IS_ERR(file))
+		return file;
+	...
+	return file;
+}
+
+struct file *get_empty_filp(void)
+{
+	...
+	/*
+	 * Privileged users can go above max_files
+	 */
+	if (get_nr_files() >= files_stat.max_files && !capable(CAP_SYS_ADMIN)) {
+		/*
+		 * percpu_counters are inaccurate.  Do an expensive check before
+		 * we go and fail.
+		 */
+		if (percpu_counter_sum_positive(&nr_files) >= files_stat.max_files)
+			goto over;
+	}
+	...
+}
+```
+
+## summary
+* key factors:
+	* `fs.nr_open` limits the max length of the fd table of a single process, this is system level.
+	* ulimit `nofile` limits the upper bound of the fd that could be allocated, this is per-process level.
+	* `fs.file-max` limits the max number of the file objects of a single process, this is system level.
+		* this limit could be bypassed by `root` user.
+
+```
+# ulimit -nH
+1048576
+# ulimit -nS
+1024
+# sysctl fs.nr_open
+fs.nr_open = 1048576
+# sysctl fs.file-max
+fs.file-max = 9223372036854775807
 ```
 
 ## references
