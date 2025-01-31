@@ -214,7 +214,7 @@ struct file *get_empty_filp(void)
 ## summary
 * key factors:
 	* `fs.nr_open` limits the max length of the fd table of a single process, this is system level.
-	* ulimit `nofile` limits the upper bound of the fd that could be allocated, this is per-process level.
+	* ulimit `nofile` limits the upper bound of the fd that could be allocated, this is user level.
 	* `fs.file-max` limits the max number of the file objects of a single process, this is system level.
 		* this limit could be bypassed by `root` user.
 
