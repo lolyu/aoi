@@ -180,6 +180,8 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 }
 ```
 
+* `get_empty_filp()` checks if the system-level file count exceeds the limit `fs.file-max`.
+
 ```c
 struct file *alloc_file(struct path *path, fmode_t mode,
 		const struct file_operations *fop)
@@ -214,8 +216,8 @@ struct file *get_empty_filp(void)
 ## summary
 * key factors:
 	* `fs.nr_open` limits the max length of the fd table of a single process, this is system level.
-	* ulimit `nofile` limits the upper bound of the fd that could be allocated, this is user level.
-	* `fs.file-max` limits the max number of the file objects of a single process, this is system level.
+	* ulimit `nofile` limits the upper bound of the fd that could be allocated for a single process, this is user level.
+	* `fs.file-max` limits the max number of the file objects of the system, this is system level.
 		* this limit could be bypassed by `root` user.
 
 ```
