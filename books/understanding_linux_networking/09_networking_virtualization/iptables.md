@@ -8,7 +8,7 @@
     * `NF_IP_LOCAL_OUT`: This hook is triggered by any locally created outbound traffic as soon as it hits the network stack.
     * `NF_IP_POST_ROUTING`: This hook is triggered by any outgoing or forwarded traffic after routing has taken place and just before being sent out on the wire.
 
-![image](https://github.com/user-attachments/assets/9d4ac5a7-324f-4c50-8a79-e05ed28dbf88)
+![image](https://github.com/user-attachments/assets/7d3cdbb7-e240-4598-a3cc-fae3b4f7eee8)
 
 
 ## references
