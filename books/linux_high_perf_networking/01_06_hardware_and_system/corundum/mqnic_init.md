@@ -38,4 +38,31 @@ module_exit(mqnic_exit);
 * when the PCI core identifies your driver as a driver that supports a device on the bus, the probe function will then be called.
 
 ## driver probe: `mqnic_pci_probe`
-* `
+```c
+static int mqnic_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+{
+	int ret = 0;
+	struct mqnic_dev *mqnic;											// the mqnic device
+	struct mqnic_priv *priv;
+	struct device *dev = &pdev->dev;									// pdev is the struct pci_dev - pci device, pdev->dev is the generic device interface
+
+	...
+	mqnic = devm_kzalloc(dev, sizeof(*mqnic), GFP_KERNEL);
+
+	mqnic->dev = dev;
+	mqnic->pdev = pdev;
+	pci_set_drvdata(pdev, mqnic);
+
+	...
+	for (k = 0; k < MQNIC_MAX_IRQ; k++) {
+		ATOMIC_INIT_NOTIFIER_HEAD(&mqnic->irq_nh[k]);
+	}
+
+	for (k = 0; k < mqnic->irq_count; k++) {							// set mqnic_interrupt as the interrupt handler
+		ret = pci_request_irq(pdev, k, mqnic_interrupt, NULL,
+				&mqnic->irq_nh[k], "%s-%d", mqnic->name, k);
+
+		mqnic->irq_map[k] = pci_irq_vector(pdev, k);
+	}
+
+```
