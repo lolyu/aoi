@@ -1,5 +1,27 @@
 # TX
 
+## the tx operations
+
+![image](https://github.com/user-attachments/assets/fbe19576-4e76-4590-8b21-ee4a0f34c787)
+
+
+
+* the operations:
+	1. the kernel network stack calls the device's `ndo_start_xmit` to transfer the packet; for corundum, it is `mqnic_start_xmit`
+	2. `mqnic_start_xmit` does the following:
+		* get the next index as from the software head ptr
+		* get the descriptor from the next index
+		* get the `struct mqnic_tx_info` and `struct mqnic_desc` from the next index;
+		* stores the skb DMA address in the descriptor (`struct mqnic_desc`) and keeps the skb in the `struct mqnic_tx_info`
+		* update the software head ptr
+	3.  `mqnic_start_xmit` writes the software head ptr into hardware head ptr register.
+	4. after NIC finishes sending the packets in the tx queue, it will enqueue those packets into the tx completion queue
+		* actually the NIC fills up the completion queue with the descriptor indexes of those sent packets.
+	5. NIC enqueue a send finish event to the event queue
+	6. NIC triggers a hardware IRQ
+	7. the hardware IRQ handler calls the corresponding TX completion queue's handler - `mqnic_tx_irq`, and `mqnic_tx_irq` in turn raise soft IRQ to delegate the completion queue handle job to the `ksoftirqd`
+	8. `ksoftirqd` calls the TX completion queue's NAPI poll function - `mqnic_poll_tx_cq` to free up the descriptors in the tx queue based on the tx completion queue
+
 ## ring basics
 
 ![image](https://github.com/user-attachments/assets/48d81f22-f274-4f85-827a-a09f3196d923)
@@ -182,6 +204,8 @@ int mqnic_create_tx_ring(struct mqnic_priv *priv, struct mqnic_ring **ring_ptr,
 
 ## tx logic
 * tx operation is implemented by `mqnic_start_xmit`
+	* `mqnic_start_xmit` adds packets to the ring buffer and updates the software head ptr.
+ 	* `mqnic_start_xmit` updates the hardware head ptr register to notify the hardware to send the packets.
 
 ```c
 netdev_tx_t mqnic_start_xmit(struct sk_buff *skb, struct net_device *ndev)
@@ -253,4 +277,40 @@ static bool mqnic_map_skb(struct mqnic_ring *ring, struct mqnic_tx_info *tx_info
 	return true;
 }
 ```
+
+## tx completion
+* when the port is started, `mqnic_start_port` will be called, which will does two things:
+	* set the tx completion handler as `mqnic_tx_irq`
+ 	* set the completion NAPI poll function as `mqnic_poll_tx_cq`
+```c
+static int mqnic_start_port(struct net_device *ndev)
+{
+	...
+
+	// set up TX completion queues
+	for (k = 0; k < priv->tx_cpl_queue_count; k++) {
+		mqnic_activate_cq_ring(priv->tx_cpl_ring[k], k % priv->event_queue_count);
+		priv->tx_cpl_ring[k]->ring_index = k;
+		priv->tx_cpl_ring[k]->handler = mqnic_tx_irq;
+
+		netif_tx_napi_add(ndev, &priv->tx_cpl_ring[k]->napi,
+				mqnic_poll_tx_cq, NAPI_POLL_WEIGHT);
+		napi_enable(&priv->tx_cpl_ring[k]->napi);
+
+		mqnic_arm_cq(priv->tx_cpl_ring[k]);
+	}
+	...
+}
+```
+* when a packet is sent by NIC, NIC will add a `struct mqnic_cpl` to the tx completion queue:
+```c
+struct mqnic_cpl {
+	__le16 queue;			// tx queue index
+	__le16 index;			// packet index in the tx queue ring buffer
+	__le16 len;
+	...
+};
+```
+
+## tx completion hardware IRQ
 
