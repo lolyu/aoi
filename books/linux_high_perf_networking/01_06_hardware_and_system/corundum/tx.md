@@ -313,4 +313,130 @@ struct mqnic_cpl {
 ```
 
 ## tx completion hardware IRQ
+* when NIC finishes processing one descriptor in the tx queue:
+	* update the tx queue hardware tail ptr
+ 	* add one descriptor for this sent packet to the tx completion queue and update the tx completion queue hardware head ptr
+  	* add one send tx finish event to the event queue
+  	* trigger a hardware IRQ fvcvcvv1
 
+```c
+struct mqnic_event {
+	__le16 type;				// MQNIC_EVENT_TYPE_TX_CPL or MQNIC_EVENT_TYPE_RX_CPL
+	__le16 source;				// the tx queue/tx completion queue index
+};
+
+```
+
+* `mqnic_interrupt` -> `mqnic_process_eq`
+```c
+void mqnic_process_eq(struct mqnic_eq_ring *eq_ring)
+{
+	struct mqnic_priv *priv = eq_ring->priv;
+	struct mqnic_event *event;
+	struct mqnic_cq_ring *cq_ring;
+	u32 eq_index;
+	u32 eq_tail_ptr;
+	int done = 0;
+
+	// read head pointer from NIC
+	mqnic_eq_read_head_ptr(eq_ring);																	// update event queue software head ptr with hardware head ptr
+
+	eq_tail_ptr = eq_ring->tail_ptr;																	// event queue software tail ptr is the last prcoessed position
+	eq_index = eq_tail_ptr & eq_ring->size_mask;
+
+	while (eq_ring->head_ptr != eq_tail_ptr) {															// start to process those events pushed into event queue
+		event = (struct mqnic_event *)(eq_ring->buf + eq_index * eq_ring->stride);
+
+		if (event->type == MQNIC_EVENT_TYPE_TX_CPL) {													// tx completion event, call the corresponding tx completion queue handler
+			// transmit completion event
+			cq_ring = priv->tx_cpl_ring[le16_to_cpu(event->source)];
+			if (likely(cq_ring && cq_ring->handler))
+				cq_ring->handler(cq_ring);
+		} else if (le16_to_cpu(event->type) == MQNIC_EVENT_TYPE_RX_CPL) {								// rx completion event, call the corresponding rx completion queue handler
+			// receive completion event
+			cq_ring = priv->rx_cpl_ring[le16_to_cpu(event->source)];
+			if (likely(cq_ring && cq_ring->handler))
+				cq_ring->handler(cq_ring);
+		} else {
+			...
+		}
+
+		done++;
+
+		eq_tail_ptr++;
+		eq_index = eq_tail_ptr & eq_ring->size_mask;
+	}
+
+	// update eq tail
+	eq_ring->tail_ptr = eq_tail_ptr;
+	mqnic_eq_write_tail_ptr(eq_ring);																	// update event queue hardware tail ptr with the software tail ptr
+}
+```
+
+* the tx completion queue handler is `mqnic_tx_irq`, which is set when the port is admin up:
+
+```c
+static int mqnic_start_port(struct net_device *ndev)
+{
+	...
+	// set up TX completion queues
+	for (k = 0; k < priv->tx_cpl_queue_count; k++) {
+		mqnic_activate_cq_ring(priv->tx_cpl_ring[k], k % priv->event_queue_count);
+		priv->tx_cpl_ring[k]->ring_index = k;
+		priv->tx_cpl_ring[k]->handler = mqnic_tx_irq;										// set the tx completion queue handler
+
+		netif_tx_napi_add(ndev, &priv->tx_cpl_ring[k]->napi,								// set the tx completion queue NAPI poll
+				mqnic_poll_tx_cq, NAPI_POLL_WEIGHT);
+		napi_enable(&priv->tx_cpl_ring[k]->napi);
+
+		mqnic_arm_cq(priv->tx_cpl_ring[k]);
+	}
+	...
+}
+```
+
+* `mqnic_tx_irq` signals `NAPI` that a new batch of tx completion packets is ready to be processed (freed):
+	* the tx completion queue's NAPI structure is added to the kernel polling list.
+ 	* `ksoftirqd` will process the polling list and call the driver's designated `poll` function.
+		* in this case, the `poll` function is `mqnic_poll_tx_cq` -> `mqnic_process_tx_cq`
+
+```c
+int mqnic_process_tx_cq(struct mqnic_cq_ring *cq_ring, int napi_budget)
+{
+	...
+
+
+	// process completion queue
+	// read head pointer from NIC
+	mqnic_cq_read_head_ptr(cq_ring);											// update the completion queue software head ptr with the completion queue hardware head ptr
+
+	cq_tail_ptr = cq_ring->tail_ptr;											// the completion queue software tail ptr is the last processed position
+	cq_index = cq_tail_ptr & cq_ring->size_mask;
+
+	while (cq_ring->head_ptr != cq_tail_ptr && done < budget) {
+		cpl = (struct mqnic_cpl *)(cq_ring->buf + cq_index * cq_ring->stride);
+		ring_index = le16_to_cpu(cpl->index) & ring->size_mask;
+		tx_info = &ring->tx_info[ring_index];
+
+
+		// free TX descriptor
+		mqnic_free_tx_desc(ring, ring_index, napi_budget);
+
+		packets++;
+		bytes += le16_to_cpu(cpl->len);
+
+		done++;
+
+		cq_tail_ptr++;
+		cq_index = cq_tail_ptr & cq_ring->size_mask;
+	}
+
+	// update CQ tail
+	cq_ring->tail_ptr = cq_tail_ptr;
+	mqnic_cq_write_tail_ptr(cq_ring);											// update the completion queue hardware tail ptr with the completion queue software tail ptr
+
+	...
+	return done;
+}
+
+```
