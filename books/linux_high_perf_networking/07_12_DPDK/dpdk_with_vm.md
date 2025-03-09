@@ -2,7 +2,7 @@
 
 ## install dependencies
 ```
-# apt install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virtinst libguestfs-tools
+# apt install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virtinst libguestfs-tools ifupdown
 # adduser lolv libvirt
 ```
 
