@@ -1,5 +1,5 @@
 # DPDK basics
-
+* DPDK bypasses kernel and process packet in the user space.
 * key terms:
     * EAL: environment abstraction layer
     * PMD: poll mode driver
@@ -14,6 +14,17 @@
 ![image](https://github.com/user-attachments/assets/b7674caa-504a-4f76-b9db-208e19ef17ef)
 
 * EAL hides the environmental specifics from the applications/libraries and provide a generic interface.
+* EAL provides services:
+    * DPDK load
+    * multi-threaded/multi-process run
+    * CPU affinity
+    * memory allocation/free
+    * lock/atomic
+    * time reference
+    * PCI bus interaction
+    * trace/debug
+    * interrupt handler
+    * alarm
 
 ## poll mode driver
 
