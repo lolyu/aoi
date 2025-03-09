@@ -15,16 +15,18 @@
 
 * EAL hides the environmental specifics from the applications/libraries and provide a generic interface.
 * EAL provides services:
-    * DPDK load
-    * multi-threaded/multi-process run
-    * CPU affinity
-    * memory allocation/free
-    * lock/atomic
-    * time reference
-    * PCI bus interaction
-    * trace/debug
-    * interrupt handler
-    * alarm
+   * DPDK loading and launching
+   * Support for multi-process and multi-thread execution types
+   * Core affinity/assignment procedures
+   * System memory allocation/de-allocation
+   * Atomic/lock operations
+   * Time reference
+   * PCI bus access
+   * Trace and debug functions
+   * CPU feature identification
+   * Interrupt handling
+   * Alarm operations
+   * Memory management (malloc)
 
 ## poll mode driver
 
