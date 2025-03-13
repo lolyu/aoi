@@ -10,6 +10,8 @@ MPPS = bitRate / 8 * (IPG + preamble + SFD + packet size)
     * IPG: inter packet gap
     * SFD: start frame delimiter
 
+![image](https://github.com/user-attachments/assets/5fd1b194-1d5a-4df9-bed9-ebfebd1b7b97)
+
 
 * MPPS with 10Gbit/s throughput:
 
