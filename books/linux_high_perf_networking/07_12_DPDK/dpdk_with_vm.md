@@ -1,4 +1,4 @@
-#
+![image](https://github.com/user-attachments/assets/4dd0ab4e-e138-4355-868e-10ba10c248b6)#
 
 ## install dependencies
 ```
@@ -26,6 +26,12 @@
 --network bridge:br1,model=e1000e \
 --extra-args 'console=ttyS0,115200n8 serial'
 ```
+* start an already installed image:
+```
+# virt-install --import -n dpdk_workspace --description "dpdk env" --os-type=Linux --os-variant=ubuntu20.04 --ram=8192 --vcpus=4 --disk path=/home/lolv/workspace/repo/dpdk/dpdk.qcow2,bus=virtio,format=qcow2 --network bridge:br1,model=e1000e --network bridge:dpdk_
+br,model=e1000e --network bridge:dpdk_br,model=e1000e --filesystem /home/lolv/workspace/repo/dpdk/workspace,/mnt/dpdk --noreboot
+```
+
 * setup the network
 ```
 # ip addr add *.*.*.*/* dev enp3s0
