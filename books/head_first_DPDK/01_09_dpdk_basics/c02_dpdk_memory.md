@@ -114,6 +114,13 @@ NUMA node1 CPU(s):                  1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,3
 
 ![image](https://github.com/user-attachments/assets/3ce01fac-2233-4e3d-be51-f42d7407d5a4)
 
+### cache write policy
+* cache write policy:
+   * write-through
+   * write-back
+   * write-comibining
+   * unreachable
+
 
 ## references
 * https://en.wikipedia.org/wiki/Cache_placement_policies
