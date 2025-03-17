@@ -52,11 +52,11 @@ NUMA node1 CPU(s):                  1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,3
 
 ![image](https://github.com/user-attachments/assets/72033b88-b30a-49d4-b16b-2df54896039b)
 
-|cache|L1 cache|L2 cache|L3 cache (LLC - last level cache)|
-|-|-|-|-|
-|size|10K+|100K+|20M+|
-|locality||||
-|speed||||
+|cache|L1 cache|L2 cache|L3 cache (LLC - last level cache)|main memory|
+|-|-|-|-|-|
+|size|10K+|100K+|20M+|4GB ~ 1TB|
+|locality|||||
+|speed|1ns|4ns|10x slower than L2|2x slower than L3|
 
 ## TLB cache
 * TLB (translate look-aside buffer) cache is used to store the mapping from VA to PA
@@ -125,3 +125,4 @@ NUMA node1 CPU(s):                  1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,3
 ## references
 * https://en.wikipedia.org/wiki/Cache_placement_policies
 * https://en.wikipedia.org/wiki/CPU_cache#Cache_entry_structure
+* https://www.intel.com/content/www/us/en/developer/articles/technical/memory-performance-in-a-nutshell.html
