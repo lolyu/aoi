@@ -63,8 +63,10 @@ int main()
 }
 
 ```
+* the prefetch could decrease the init function runtime from 950ms to 780ms.
 ```
 $ ./a.out         
-Function execution time: 953 microseconds
-Function execution time: 468 microseconds
+Function execution time: 949 microseconds
+$ ./a.out         
+Function execution time: 774 microseconds
 ```
