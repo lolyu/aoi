@@ -15,6 +15,7 @@
 * how to do?
     * `posix_memalign`
     * `__attribute__((aligned(64)))`
+    * `alignas` specifier
 
 ## cache prefetch
 
