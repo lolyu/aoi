@@ -35,6 +35,7 @@
             * if the buffer pool shared headroom pool size > 0, xoff specifies the max amount of headroom buffer this PG can use from the buffer pool shared headroom pool size.
         * dynamic_th: dynamic threshold, represents the proportion of max share buffer in the pool this queue can occupy
             * alpha = 2 ^ dynamic_th, proportion = alpha / (1 + alpha)
+        * static_th
     * buffer PG: specifies the profile for each ingress priority.
     * buffer queue: specifies the profile for each egress queue.
 
