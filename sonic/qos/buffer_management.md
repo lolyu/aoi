@@ -10,10 +10,12 @@
 
 ![image](https://github.com/user-attachments/assets/f2dae561-26f7-45bd-8ee4-40fed4ab96b2)
 
-
-### ingress admission control
-
-### egress admission control
+* ingress admission control:
+    * lossy queue: if the queue hits the threshold -> packet is dropped.
+    * lossless queue: if the queue hists the threshold ->
+        1. queue in PAUSE state, send PFC PAUSE
+        2. store the packet in headroom
+* egress admission control
 
 ## configurations
 * a buffer configuration includes:
