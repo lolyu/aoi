@@ -2,18 +2,74 @@
 
 * steps:
     * disable tx on the VLAN port on t0
-    * send downstream traffic to overflow the uplink port buffer
+    * send downstream traffic to hit the off threshold, see the behaviors of ingress port.
 
-
-## disable tx on the vlan port
-
+## MMU config
 ```
->>> from sonic_py_common import port_util
->>> port_name_map = port_util.get_interface_oid_map(db)
->>> port_name_map
-({'Ethernet0': '100000000001f', 'Ethernet10': '1000000000022', 'Ethernet100': '1000000000067', 'Ethernet102': '1000000000068', 'Ethernet104': '100000000003e', 'Ethernet106': '100000000003f', 'Ethernet108': '1000000000040', 'Ethernet110': '1000000000041', 'Ethernet112': '1000000000042', 'Ethernet114': '1000000000043', 'Ethernet116': '1000000000044', 'Ethernet118': '1000000000045', 'Ethernet12': '1000000000023', 'Ethernet120': '1000000000046', 'Ethernet122': '1000000000047', 'Ethernet124': '1000000000048', 'Ethernet126': '1000000000049', 'Ethernet128': '100000000002b', 'Ethernet130': '100000000002c', 'Ethernet132': '100000000002d', 'Ethernet134': '100000000002e', 'Ethernet136': '100000000002f', 'Ethernet138': '1000000000030', 'Ethernet14': '1000000000024', 'Ethernet140': '1000000000031', 'Ethernet142': '1000000000032', 'Ethernet144': '1000000000033', 'Ethernet146': '1000000000034', 'Ethernet148': '1000000000035', 'Ethernet150': '1000000000036', 'Ethernet152': '100000000000f', 'Ethernet154': '1000000000010', 'Ethernet156': '1000000000011', 'Ethernet158': '1000000000012', 'Ethernet16': '1000000000025', 'Ethernet160': '1000000000013', 'Ethernet162': '1000000000014', 'Ethernet164': '1000000000015', 'Ethernet166': '1000000000016', 'Ethernet168': '1000000000017', 'Ethernet170': '1000000000018', 'Ethernet172': '1000000000019', 'Ethernet174': '100000000001a', 'Ethernet176': '100000000001b', 'Ethernet178': '100000000001c', 'Ethernet18': '1000000000026', 'Ethernet180': '100000000001d', 'Ethernet182': '100000000001e', 'Ethernet184': '1000000000037', 'Ethernet186': '1000000000038', 'Ethernet188': '1000000000039', 'Ethernet190': '100000000003a', 'Ethernet192': '100000000004a', 'Ethernet194': '100000000004b', 'Ethernet196': '100000000004c', 'Ethernet198': '100000000004d', 'Ethernet20': '1000000000027', 'Ethernet200': '1000000000069', 'Ethernet202': '100000000006a', 'Ethernet204': '100000000006b', 'Ethernet206': '100000000006c', 'Ethernet208': '100000000006d', 'Ethernet210': '100000000006e', 'Ethernet212': '100000000006f', 'Ethernet214': '1000000000070', 'Ethernet216': '1000000000071', 'Ethernet218': '1000000000072', 'Ethernet22': '1000000000028', 'Ethernet220': '1000000000073', 'Ethernet222': '1000000000074', 'Ethernet224': '1000000000075', 'Ethernet226': '1000000000076', 'Ethernet228': '1000000000077', 'Ethernet230': '1000000000078', 'Ethernet232': '100000000004e', 'Ethernet234': '100000000004f', 'Ethernet236': '1000000000050', 'Ethernet238': '1000000000051', 'Ethernet24': '1000000000001', 'Ethernet240': '1000000000052', 'Ethernet242': '1000000000053', 'Ethernet244': '1000000000054', 'Ethernet246': '1000000000055', 'Ethernet248': '1000000000056', 'Ethernet250': '1000000000057', 'Ethernet252': '1000000000058', 'Ethernet254': '1000000000059', 'Ethernet256': '100000000003b', 'Ethernet26': '1000000000002', 'Ethernet260': '100000000005a', 'Ethernet28': '1000000000003', 'Ethernet30': '1000000000004', 'Ethernet32': '1000000000005', 'Ethernet34': '1000000000006', 'Ethernet36': '1000000000007', 'Ethernet38': '1000000000008', 'Ethernet4': '1000000000020', 'Ethernet40': '1000000000009', 'Ethernet42': '100000000000a', 'Ethernet44': '100000000000b', 'Ethernet46': '100000000000c', 'Ethernet48': '100000000000d', 'Ethernet52': '100000000000e', 'Ethernet56': '1000000000029', 'Ethernet60': '100000000002a', 'Ethernet64': '100000000003c', 'Ethernet68': '100000000003d', 'Ethernet72': '100000000005b', 'Ethernet76': '100000000005c', 'Ethernet8': '1000000000021', 'Ethernet80': '100000000005d', 'Ethernet82': '100000000005e', 'Ethernet84': '100000000005f', 'Ethernet86': '1000000000060', 'Ethernet88': '1000000000061', 'Ethernet90': '1000000000062', 'Ethernet92': '1000000000063', 'Ethernet94': '1000000000064', 'Ethernet96': '1000000000065', 'Ethernet98': '1000000000066', '': '', 'PortChannel101': '20000000014f7', 'PortChannel102': '20000000014f8', 'PortChannel103': '20000000014f9', 'PortChannel104': '20000000014fa'}, {'100000000001f': 'Ethernet0', '1000000000022': 'Ethernet10', '1000000000067': 'Ethernet100', '1000000000068': 'Ethernet102', '100000000003e': 'Ethernet104', '100000000003f': 'Ethernet106', '1000000000040': 'Ethernet108', '1000000000041': 'Ethernet110', '1000000000042': 'Ethernet112', '1000000000043': 'Ethernet114', '1000000000044': 'Ethernet116', '1000000000045': 'Ethernet118', '1000000000023': 'Ethernet12', '1000000000046': 'Ethernet120', '1000000000047': 'Ethernet122', '1000000000048': 'Ethernet124', '1000000000049': 'Ethernet126', '100000000002b': 'Ethernet128', '100000000002c': 'Ethernet130', '100000000002d': 'Ethernet132', '100000000002e': 'Ethernet134', '100000000002f': 'Ethernet136', '1000000000030': 'Ethernet138', '1000000000024': 'Ethernet14', '1000000000031': 'Ethernet140', '1000000000032': 'Ethernet142', '1000000000033': 'Ethernet144', '1000000000034': 'Ethernet146', '1000000000035': 'Ethernet148', '1000000000036': 'Ethernet150', '100000000000f': 'Ethernet152', '1000000000010': 'Ethernet154', '1000000000011': 'Ethernet156', '1000000000012': 'Ethernet158', '1000000000025': 'Ethernet16', '1000000000013': 'Ethernet160', '1000000000014': 'Ethernet162', '1000000000015': 'Ethernet164', '1000000000016': 'Ethernet166', '1000000000017': 'Ethernet168', '1000000000018': 'Ethernet170', '1000000000019': 'Ethernet172', '100000000001a': 'Ethernet174', '100000000001b': 'Ethernet176', '100000000001c': 'Ethernet178', '1000000000026': 'Ethernet18', '100000000001d': 'Ethernet180', '100000000001e': 'Ethernet182', '1000000000037': 'Ethernet184', '1000000000038': 'Ethernet186', '1000000000039': 'Ethernet188', '100000000003a': 'Ethernet190', '100000000004a': 'Ethernet192', '100000000004b': 'Ethernet194', '100000000004c': 'Ethernet196', '100000000004d': 'Ethernet198', '1000000000027': 'Ethernet20', '1000000000069': 'Ethernet200', '100000000006a': 'Ethernet202', '100000000006b': 'Ethernet204', '100000000006c': 'Ethernet206', '100000000006d': 'Ethernet208', '100000000006e': 'Ethernet210', '100000000006f': 'Ethernet212', '1000000000070': 'Ethernet214', '1000000000071': 'Ethernet216', '1000000000072': 'Ethernet218', '1000000000028': 'Ethernet22', '1000000000073': 'Ethernet220', '1000000000074': 'Ethernet222', '1000000000075': 'Ethernet224', '1000000000076': 'Ethernet226', '1000000000077': 'Ethernet228', '1000000000078': 'Ethernet230', '100000000004e': 'Ethernet232', '100000000004f': 'Ethernet234', '1000000000050': 'Ethernet236', '1000000000051': 'Ethernet238', '1000000000001': 'Ethernet24', '1000000000052': 'Ethernet240', '1000000000053': 'Ethernet242', '1000000000054': 'Ethernet244', '1000000000055': 'Ethernet246', '1000000000056': 'Ethernet248', '1000000000057': 'Ethernet250', '1000000000058': 'Ethernet252', '1000000000059': 'Ethernet254', '100000000003b': 'Ethernet256', '1000000000002': 'Ethernet26', '100000000005a': 'Ethernet260', '1000000000003': 'Ethernet28', '1000000000004': 'Ethernet30', '1000000000005': 'Ethernet32', '1000000000006': 'Ethernet34', '1000000000007': 'Ethernet36', '1000000000008': 'Ethernet38', '1000000000020': 'Ethernet4', '1000000000009': 'Ethernet40', '100000000000a': 'Ethernet42', '100000000000b': 'Ethernet44', '100000000000c': 'Ethernet46', '100000000000d': 'Ethernet48', '100000000000e': 'Ethernet52', '1000000000029': 'Ethernet56', '100000000002a': 'Ethernet60', '100000000003c': 'Ethernet64', '100000000003d': 'Ethernet68', '100000000005b': 'Ethernet72', '100000000005c': 'Ethernet76', '1000000000021': 'Ethernet8', '100000000005d': 'Ethernet80', '100000000005e': 'Ethernet82', '100000000005f': 'Ethernet84', '1000000000060': 'Ethernet86', '1000000000061': 'Ethernet88', '1000000000062': 'Ethernet90', '1000000000063': 'Ethernet92', '1000000000064': 'Ethernet94', '1000000000065': 'Ethernet96', '1000000000066': 'Ethernet98', '20000000014f7': 'PortChannel101', '20000000014f8': 'PortChannel102', '20000000014f9': 'PortChannel103', '20000000014fa': 'PortChannel104'})
->>> asic_db = swsscommon.DBConnector("ASIC_DB", 0, True)
->>> asic_state_table = swsscommon.ProducerTable(asic_db, "ASIC_STATE")
->>> fvs = swsscommon.FieldValuePairs([('SAI_PORT_ATTR_PKT_TX_ENABLE', 'false')])
->>> asic_state_table.set("SAI_OBJECT_TYPE_PORT:oid:0x100000000001f", fvs)
+Pool: ingress_lossless_pool
+----  --------
+mode  dynamic
+size  32732160
+type  ingress
+xoff  1622016
+----  --------
+
+Profile: ingress_lossy_profile
+---------  ---------------------
+pool       ingress_lossless_pool
+size       0
+static_th  32732160
+---------  ---------------------
+
+Profile: pg_lossless_100000_300m_profile
+----------  ---------------------
+dynamic_th  0
+pool        ingress_lossless_pool
+size        4608
+xoff        160000
+xon         4608
+xon_offset  4608
+----------  ---------------------
 ```
+
+## topo
+```
+pkt ingress -> Ethernet112(uplink) -> DUT -> Ethernet4 (Vlan downlink) -> ptf
+```
+
+## lossy PG triage
+1. disable `Ethernet4` tx
+    * use [`set_port_tx`](https://github.com/lolyu/aoi/tree/master/scripts) to disable port tx on a vlan port.
+
+2. send 40000 packets from ptf to `Ethernet112`
+```
+>>> pkt
+<Ether  dst=00:01:02:03:04:05 src=00:06:07:08:09:0a type=0x800 |<IP  ihl=None tos=0x0 id=1 ttl=64 proto=hopopt src=192.168.0.1 dst=192.168.0.2 |<Raw  load='\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !"#$%&\'()*+,-./0123456789:;<=>?@A' |>>>
+>>> sendp(pkt, iface="eth29", count=21000)
+```
+3. check watermark && PG drop counter, no noticeable drops
+```
+# portstat -i Ethernet112; show priority-group drop counters | grep Ethernet112; show priority-group watermark shared | grep Ethernet112
+Last cached time was 2025-03-25T14:21:24.683784
+      IFACE    STATE    RX_OK      RX_BPS    RX_UTIL    RX_ERR    RX_DRP    RX_OVR    TX_OK    TX_BPS    TX_UTIL    TX_ERR    TX_DRP    TX_OVR
+-----------  -------  -------  ----------  ---------  --------  --------  --------  -------  --------  ---------  --------  --------  --------
+Ethernet112        U   40,227  129.12 B/s      0.00%         0         0         0      110  0.00 B/s      0.00%         0         0         0
+Ethernet112    228      0      0      0      0      0      0      0
+Ethernet112  10240512      0      0      0      0      0      0      0
+```
+
+3. continue to send 20000 packets, all dropped
+    * `Ethernet112:PG0` only takes `10240512`, why they are dropped?
+```
+# portstat -i Ethernet112; show priority-group drop counters | grep Ethernet112; show priority-group watermark shared | grep Ethernet112
+Last cached time was 2025-03-25T14:21:24.683784
+      IFACE    STATE    RX_OK      RX_BPS    RX_UTIL    RX_ERR    RX_DRP    RX_OVR    TX_OK    TX_BPS    TX_UTIL    TX_ERR    TX_DRP    TX_OVR
+-----------  -------  -------  ----------  ---------  --------  --------  --------  -------  --------  ---------  --------  --------  --------
+Ethernet112        U   60,339  156.90 B/s      0.00%         0    20,000         0      110  0.00 B/s      0.00%         0         0         0
+Ethernet112  20342      0      0      0      0      0      0      0
+Ethernet112  10240512      0      0      0      0      0      0      0
+```
+
+## lossless PG triage
+
+
