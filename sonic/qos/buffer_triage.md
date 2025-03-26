@@ -155,6 +155,7 @@ Ethernet4   MC19               0                0            0             0
 ```
 
 5. send another 10000 packets, all dropped
+    * the watermark 20480512 is close to the max lossy queue buffer capacity: 21964117
 ```
 # portstat -i Ethernet112; show priority-group drop counters | grep Ethernet112; show priority-group watermark shared | grep Ethernet112
       IFACE    STATE    RX_OK      RX_BPS    RX_UTIL    RX_ERR    RX_DRP    RX_OVR    TX_OK    TX_BPS    TX_UTIL    TX_ERR    TX_DRP    TX_OVR
@@ -228,5 +229,14 @@ Ethernet132      0         0      0      0      0      0      0       0      0  
 ```
 
 ## lossless PG triage
+* the lossless PG at most buffers 32732160 * 2 ^ 0 / 1 + 2 ^ 0 = 16366080 bytes
+    * the headroom is 160000 bytes
+* the lossless queue at most buffers 32599040 bytes
 
+16366080
+2092800
 
+```
+>>> pkt
+<Ether  dst=d4:af:f7:cb:c8:ec src=00:06:07:08:09:0a type=0x800 |<IP  ihl=None tos=0x10 id=1 ttl=64 proto=hopopt src=192.168.0.1 dst=192.168.0.3 |<Raw  load='\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !"#$%&\'()*+,-./0123456789:;<=>?@A' |>>>
+```
