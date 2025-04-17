@@ -92,6 +92,42 @@ b = 1;        // cache hit, "a = 1" is in the store buffer, add "b = 1" to the s
 
 #### `LoadStore` reorder
 
+## memory consistency model
+* what is memory consistency model?
+	* memory consistency model determines the shared-memory access order.
+
+* key concepts:
+	* program order
+ 	* execution order
+
+### sequential consistency
+* sequential consistency means the operations of all the processors are executed in some sequential order, and the operations of each processor appear in this sequence in the order specified by its program.
+	* all processors' operations are interleaved.
+ 	* single processor's operations happens in "program order" (access to the same memory location).
+* two required conditions:
+	* maintain a single sequential order among operations from all processors
+ 	* maintain program order among operations from individual processors
+
+#### sequential consistency without cache
+* the sufficient conditions for the sequential memory model are:
+	* each processor issues memory requests in the order specified by its program.
+	* memory requests from all processors issued to an individual memory module are serviced from a single FIFO queue.
+ 		* issuing a memory request consists of placing the request in this queue.
+
+#### sequential consistency with cache
+* sufficient conditions of the sequential memory model applicable to the cache architecture have been updated:
+	* each processor issues memory requests in the order specified by its program.
+	* after a write operation is issued, the issuing processor should wait for the write to complete before issuing its next operation. - **write atomicity**
+	* after a read operation is issued, the issuing processor should wait for the read to complete and for the write whose value is being returned by the read to complete before issuing its next operation. - **read atomicity**
+	* write operations to the same location are serialized in the same order for all processors.
+* `atomicity`:
+	* `read atomicity`: the write operation will not end until the CPU receives invalidate acknowledges from all other processors
+ 	* `write atomicity`: the read operation is finished only when previous write operation to the same memory location is completed
+
+### x86 consistency model
+* x86 only reorders `LoadStore` operation, and this only applies to operations at different memory locations.
+
+
 ## references
 * https://www.alibabacloud.com/blog/memory-model-and-synchronization-primitive---part-1-memory-barrier_597460
 * https://www.alibabacloud.com/blog/memory-model-and-synchronization-primitive---part-2-memory-model_597461
