@@ -6,12 +6,16 @@
 #include <functional>
 #include <vector>
 #include <chrono>
+#include <atomic>
 
 /*
 Key takeaways:
 1. thread primitives
 2. mutex, lock
 3. conditional variable
+4. two mutexes in MPMC to relax mutex contention
+5. perfect forwarding
+6. template parameter pack
 */
 
 template <typename T>
@@ -31,7 +35,7 @@ public:
     bool pop(T &value)
     {
         std::unique_lock<std::mutex> lock(_consumer_mutex);
-        _not_empty.wait(lock, [this]() { return !_consumer_queue.empty() || swap_queue() || _nonblock; });
+        _not_empty.wait(lock, [this]() { return !_consumer_queue.empty() || swap_queue() || _nonblock.load(std::memory_order_relaxed); });
         if (_consumer_queue.empty())
         {
             return false;
@@ -44,7 +48,7 @@ public:
     void cancel()
     {
         std::lock_guard<std::mutex> lock(_producer_mutex);
-        _nonblock = true;
+        _nonblock.store(true, std::memory_order_relaxed);
         _not_empty.notify_all();
     }
 
@@ -61,7 +65,7 @@ private:
     std::mutex _consumer_mutex;
     std::queue<T> _producer_queue;
     std::queue<T> _consumer_queue;
-    bool _nonblock;
+    std::atomic_bool _nonblock;
     std::condition_variable _not_empty;
 };
 
@@ -74,7 +78,7 @@ public:
     bool pop(T &value)
     {
         std::unique_lock<std::mutex> lock(_mutex);
-        _not_empty.wait(lock, [this]() { return !_queue.empty() || _nonblock; });
+        _not_empty.wait(lock, [this]() { return !_queue.empty() || _nonblock.load(std::memory_order_relaxed); });
         if (_queue.empty())
         {
             return false;
@@ -95,7 +99,7 @@ public:
     void cancel()
     {
         std::lock_guard<std::mutex> lock(_mutex);
-        _nonblock = true;
+        _nonblock.store(true, std::memory_order_relaxed);
         _not_empty.notify_all();
     }
 
@@ -103,7 +107,7 @@ private:
     std::mutex _mutex;
     std::condition_variable _not_empty;
     std::queue<T> _queue;
-    bool _nonblock = false;
+    std::atomic_bool _nonblock;
 };
 
 class ThreadPool
@@ -111,7 +115,7 @@ class ThreadPool
 public:
     explicit ThreadPool(size_t num_threads)
     {
-        for (int i = 0; i < num_threads; ++i)
+        for (size_t i = 0; i < num_threads; ++i)
         {
             _workers.emplace_back([this]() { worker(); });
         }
@@ -150,7 +154,7 @@ private:
             std::function<void ()> task;
             if (!_tasks.pop(task))
             {
-                break;
+                continue;
             }
             task();
         }
