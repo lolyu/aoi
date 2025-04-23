@@ -1,5 +1,6 @@
 # cpp object alignment
 * Every object type has the property called alignment requirement, which is a nonnegative integer value (of type std::size_t, and always a power of two) representing the number of bytes between successive addresses at which objects of this type can be allocated.
+* each object should be placed at address that is a multiple of its alignment requirement.
 
 ## the alignment rules for POD
 * For POD (plain old data), the rules are typically:
