@@ -1,5 +1,6 @@
 # dpdk `rte_ring`
 * this note only focus on `rte_ring` implementation in `RTE_RING_SYNC_MT` and `RTE_RING_SYNC_ST` sync types.
+* the rewrite of `rte_ring` in C++: https://github.com/lolyu/aoi/blob/master/cpp/cpp_coding/ring_buffer/rte_ring_buffer.cpp
 ```c
 struct rte_ring {
 	alignas(RTE_CACHE_LINE_SIZE) char name[RTE_RING_NAMESIZE];
