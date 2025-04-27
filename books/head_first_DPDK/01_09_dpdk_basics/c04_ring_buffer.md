@@ -69,6 +69,7 @@ __rte_ring_do_enqueue_elem(struct rte_ring *r, const void *obj_table,
 * `__rte_ring_headtail_move_head(&r->prod, &r->cons, r->capacity, is_sp, n, behavior, old_head, new_head, free_entries)`
     * check if enough room in the ring
     * update the producer head
+* `algorithms built around CAS typically read some key memory location and remember the old value. Based on that old value, they compute some new value. Then they try to swap in the new value using CAS, where the comparison checks for the location still being equal to the old value. If CAS indicates that the attempt has failed, it has to be repeated from the beginning: the location is re-read, a new value is re-computed and the CAS is tried again.`
 ```c
 static __rte_always_inline unsigned int
 __rte_ring_headtail_move_head(struct rte_ring_headtail *d,                // d is the producer, s is the consumer
@@ -148,3 +149,7 @@ rte_wait_until_equal_32(volatile uint32_t *addr, uint32_t expected,
 		rte_pause();
 }
 ```
+
+## references
+* https://doc.dpdk.org/guides/prog_guide/ring_lib.html
+* https://en.wikipedia.org/wiki/Compare-and-swap
