@@ -48,3 +48,25 @@ d6f5:00:02.0 Ethernet controller: Mellanox Technologies MT27800 Family [ConnectX
                 LnkSta2: Current De-emphasis Level: -6dB, EqualizationComplete-, EqualizationPhase1-
                          EqualizationPhase2-, EqualizationPhase3-, LinkEqualizationRequest-
 ```
+
+
+## packet forwarding
+<img width="260" alt="image" src="https://github.com/user-attachments/assets/c0f354b3-cd66-43c9-a9bc-b3adc9bfee97" />
+
+* receive:
+    1. CPU writes the packet buffer address to the descriptor in the rx ring
+    2. NIC reads the rx ring to get the packet buffer address - `PCIe downstream`
+    3. NIC writes the packet to the packet buffer - `PCIe upstream`
+    4. NIC updates the descriptor to signal packet receivement ready - `PCIe upstream`
+    5. CPU reads the descriptor in the rx ring to get the packet
+* send:
+    8. CPU reads the free descriptor (finishes sending) in the tx ring
+    9. CPU writes the packet buffer address to the descriptor in the tx ring
+    10. NIC reads the packet buffer address from the descriptor - `PCIe downstream`
+    11. NIC reads the packet from the packet buffer address - `PCIe downstream`
+    12. NIC updates the descriptor to sigal packet send finish - `PCIe upstream`
+
+* Though PCIe has decent bandwidth, the ring operations has overhead.
+
+### optimization
+
