@@ -55,18 +55,27 @@ d6f5:00:02.0 Ethernet controller: Mellanox Technologies MT27800 Family [ConnectX
 
 * receive:
     1. CPU writes the packet buffer address to the descriptor in the rx ring
-    2. NIC reads the rx ring to get the packet buffer address - `PCIe downstream`
+    2. NIC reads the rx ring to get the packet buffer address - `PCIe upstream request/downstream data`
     3. NIC writes the packet to the packet buffer - `PCIe upstream`
     4. NIC updates the descriptor to signal packet receivement ready - `PCIe upstream`
     5. CPU reads the descriptor in the rx ring to get the packet
+
 * send:
+
     8. CPU reads the free descriptor (finishes sending) in the tx ring
     9. CPU writes the packet buffer address to the descriptor in the tx ring
-    10. NIC reads the packet buffer address from the descriptor - `PCIe downstream`
+    10. NIC reads the packet buffer address from the descriptor - `PCIe upstream reqest/downstream data`
     11. NIC reads the packet from the packet buffer address - `PCIe downstream`
-    12. NIC updates the descriptor to sigal packet send finish - `PCIe upstream`
+    12. NIC updates the descriptor to sigal packet send finish - `PCIe upstream `
 
 * Though PCIe has decent bandwidth, the ring operations has overhead.
 
 ### optimization
+* three optimization methods:
+    * ring tail register update coalesce
+        * moderate the MMIO interaction.
+    * PCIe transaction layer packet coalesce
+    * cache line aligned packet buffer
 
+## references
+* https://www.intel.com/content/www/us/en/developer/articles/guide/dpdk-performance-optimization-guidelines-white-paper.html
