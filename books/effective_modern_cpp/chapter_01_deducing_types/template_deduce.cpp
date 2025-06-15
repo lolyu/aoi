@@ -19,6 +19,12 @@ type_name()
     return r;
 }
 
+template <typename T, std::size_t N>
+std::size_t array_size(const T (&)[N])
+{
+    return N;
+}
+
 template <typename T>
 void f0(const T &t)
 {
@@ -42,6 +48,8 @@ int main()
     int i = 42;
     const int &ri = i;
     const char s[] = "Hello, World!";
+
+    std::cout << "Array size of s is " << array_size(s) << std::endl;
 
     f0(i);          // T is int
     f0(ri);         // T is int
