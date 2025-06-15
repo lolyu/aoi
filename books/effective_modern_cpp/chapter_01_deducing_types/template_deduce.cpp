@@ -6,6 +6,9 @@ template <class T>
 std::string
 type_name()
 {
+    // NOTE: why we need remove the reference here?
+    // if T const int &, is_const<T>::value is false, as T itself is not const-qualified.
+    // but TR is const int, which is const-qualified
     typedef typename std::remove_reference<T>::type TR;
     std::string r = typeid(TR).name();
     if (std::is_const<TR>::value)
