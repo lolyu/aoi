@@ -6,10 +6,14 @@ template <class T>
 std::string
 type_name()
 {
-    std::string r = typeid(T).name();
-    if (std::is_const<T>::value)
+    // NOTE: why we need remove the reference here?
+    // if T const int &, is_const<T>::value is false, as T itself is not const-qualified.
+    // but TR is const int, which is const-qualified
+    typedef typename std::remove_reference<T>::type TR;
+    std::string r = typeid(TR).name();
+    if (std::is_const<TR>::value)
         r += " const";
-    if (std::is_volatile<T>::value)
+    if (std::is_volatile<TR>::value)
         r += " volatile";
     if (std::is_lvalue_reference<T>::value)
         r += "&";
@@ -17,6 +21,7 @@ type_name()
         r += "&&";
     return r;
 }
+
 
 int main()
 {
