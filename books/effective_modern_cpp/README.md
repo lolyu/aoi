@@ -1,0 +1,3 @@
+# effective modern C++
+
+## references
