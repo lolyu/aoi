@@ -11,4 +11,14 @@
 * `-p`: profile map file
 * `-b`: break config
 
+## how does syncd initialize the SAI API?
+
+
+## how does orchagent talk to syncd?
+
+
+## how does syncd handles warm-reboot?
+
+
+
 ## references
