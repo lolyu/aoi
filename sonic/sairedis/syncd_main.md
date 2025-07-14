@@ -14,6 +14,8 @@
 ## how does syncd initialize the SAI API?
 
 
+## what's OID, VID, RID?
+
 ## how does orchagent talk to syncd?
 
 
