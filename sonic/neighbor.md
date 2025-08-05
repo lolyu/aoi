@@ -115,6 +115,7 @@ struct rtnl_neigh
 ## neighorch
 
 * `NeighOrch` subscribes to neighbor events from `APPL_DB` `NEIGH_TABLE` and observes `FdbOrch` for fdb changes.
+* `NeighOrch` programs the neighbors to the ASIC.
 
 ```cpp
     gNeighOrch = new NeighOrch(m_applDb, APP_NEIGH_TABLE_NAME, gIntfsOrch, gFdbOrch, gPortsOrch, m_chassisAppDb);
@@ -130,3 +131,36 @@ struct rtnl_neigh
     * program nexthop to ASIC
 
 ### `removeNeighbor`
+* `removeNeighbor`
+	* remove nexthop from ASIC
+ 	* remove neighbor from ASIC
+
+## nbrmgrd
+* `nbrmgrd` subscribes to `CONFIG_DB` `NEIGH` table and `APPL_DB` `NEIGH_RESOLVE_TABLE` table.
+
+
+```cpp
+void NbrMgr::doTask(Consumer &consumer)
+{
+    if (table_name == CFG_NEIGH_TABLE_NAME)
+    {
+        doSetNeighTask(consumer);
+    } else if (table_name == APP_NEIGH_RESOLVE_TABLE_NAME)
+    {
+        doResolveNeighTask(consumer);
+	}
+}
+```
+
+* `nbrmgrd` listens to `CONFIG_DB` `NEIGH` to add new neighbor to the kernel
+	* if the mac address is valid, a `permanent` neighbor will be added to the kernel
+ 	* if the mac address is null, a `probe` neighbor will be added to the kernel to trigger the neighbor probe process
+
+* `nbrmgrd` listens to `APPL_DB` `NEIGH_RESOLVE_TABLE` to add `probe` neighbor to probe the neighbor.
+
+## when will `NeighOrch` notify `nbrmgrd` to probe the neighbor?
+TBD
+
+## references
+* https://www.infradead.org/~tgr/libnl/doc/core.html
+
