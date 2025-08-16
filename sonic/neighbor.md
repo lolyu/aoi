@@ -53,7 +53,8 @@ NetLink::NetLink(int pri) :
 
     nl_socket_set_nonblocking(m_socket);
     nl_socket_set_buffer_size(m_socket, 16777216, 0);
-}```
+}
+```
 
 2. `Netlink::registerGroup` is used to limit the netlink message scope
 
@@ -153,13 +154,39 @@ void NbrMgr::doTask(Consumer &consumer)
 ```
 
 * `nbrmgrd` listens to `CONFIG_DB` `NEIGH` to add new neighbor to the kernel
-	* if the mac address is valid, a `permanent` neighbor will be added to the kernel
+	* ~if the mac address is valid, a `permanent` neighbor will be added to the kernel~
  	* if the mac address is null, a `probe` neighbor will be added to the kernel to trigger the neighbor probe process
 
 * `nbrmgrd` listens to `APPL_DB` `NEIGH_RESOLVE_TABLE` to add `probe` neighbor to probe the neighbor.
 
 ## when will `NeighOrch` notify `nbrmgrd` to probe the neighbor?
-TBD
+1. when a route's nexthop is not resolvable, the route is not added to ASIC till its nexthop is resolved.
+```cpp
+    else if (nextHops.getSize() == 1)
+    {
+        /* The route is pointing to a next hop */
+        const NextHopKey& nexthop = *nextHops.getNextHops().begin();
+        if (nexthop.isIntfNextHop())
+		{
+            next_hop_id = m_intfsOrch->getRouterIntfsId(nexthop.alias);
+		}
+		else
+		{
+            if (m_neighOrch->hasNextHop(nexthop))
+            {
+                next_hop_id = m_neighOrch->getNextHopId(nexthop);
+            else
+            {
+				SWSS_LOG_INFO("Failed to get next hop %s for %s, resolving neighbor",
+						nextHops.to_string().c_str(), ipPrefix.to_string().c_str());
+				m_neighOrch->resolveNeighbor(nexthop);
+				return false;
+			}
+		}
+	}
+```
+
+2. when a vlan member port is removed from the vlan, `NeighOrch` will notify `nbrmgrd` to probe those neighbors on this port.
 
 ## references
 * https://www.infradead.org/~tgr/libnl/doc/core.html
