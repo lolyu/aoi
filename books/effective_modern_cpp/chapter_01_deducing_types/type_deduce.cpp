@@ -6,33 +6,66 @@
 #include <boost/type_index.hpp>
 
 template <typename T>
-std::string type_name()
+void type_name_helper(std::vector<std::string> &results)
 {
-    typedef typename std::remove_reference<T>::type TR;
-    std::string tn = typeid(TR).name();
-    if (std::is_const<TR>::value)
-        tn += " const";
-    if (std::is_volatile<TR>::value)
-        tn += " volatile";
-    if (std::is_lvalue_reference<T>::value)
-        tn += "&";
-    else if (std::is_rvalue_reference<T>::value)
-        tn += "&&";
-    return tn;
+    if (std::is_reference<T>::value)
+    {
+        typedef typename std::remove_reference<T>::type TR;
+
+        if (std::is_const<T>::value)
+            results.push_back("const");
+
+        if (std::is_lvalue_reference<T>::value)
+            results.push_back("&");
+        else if (std::is_rvalue_reference<T>::value)
+            results.push_back("&&");
+
+        type_name_helper<TR>(results);
+    }
+    else if (std::is_pointer<T>::value)
+    {
+        typedef typename std::remove_pointer<T>::type TP;
+
+        if (std::is_const<T>::value)
+            results.push_back("const");
+        results.push_back("*");
+
+        type_name_helper<TP>(results);
+    }
+    else
+    {
+        if (std::is_volatile<T>::value)
+            results.push_back("volatile");
+        if (std::is_const<T>::value)
+            results.push_back("const");
+        results.push_back(typeid(T).name());
+        return;
+    }
 }
 
 template <typename T>
-void f0(const T &param)
+std::string type_name()
+{
+    std::vector<std::string> results;
+    type_name_helper<T>(results);
+    std::string result;
+
+    for (auto it = results.crbegin(); it != results.crend(); ++it)
+    {
+        result += (" " + *it);
+    }
+
+    return result;
+}
+
+template <typename T>
+void f(const T &param)
 {
     std::cout << "T = " << type_name<T>() << std::endl;
     std::cout << "param = " << type_name<decltype(param)>() << std::endl;
-}
-
-template <typename T>
-void f1(const T &param)
-{
     std::cout << "T = " << boost::typeindex::type_id_with_cvr<T>().pretty_name() << std::endl;
-    std::cout << "param = " << boost::typeindex::type_id_with_cvr<decltype(param)>().pretty_name() << std::endl;}
+    std::cout << "param = " << boost::typeindex::type_id_with_cvr<decltype(param)>().pretty_name() << std::endl;
+}
 
 class Widget {};
 
@@ -45,8 +78,11 @@ int main()
 {
     const auto vw = create_widgets(2);
 
-    f0(&vw[0]);
-    f1(&vw[0]);
+    f(vw[0]);
+
+    std::cout << std::endl;
+
+    f(&vw[0]);
 
     return 0;
 }
