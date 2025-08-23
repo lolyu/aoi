@@ -13,9 +13,10 @@
     * array, POD types, structs, and unions have their members initialized to zero value
 
 * zero initialization happens when:
-    * at program start up, for all static duration variables.
+    * **at program start up, for all static duration variables.**
     * during value initialization, for scalar types and POD types that are initialized by empty braces: `{}`
-    * for arrays that have only a subset of members initialized
+    * **for arrays that have only a subset of members initialized**
+        * `int a[10] = {0};`
 
 
 ## default initialization
@@ -45,8 +46,8 @@ Class::Class(...) : member {} { ... };
 
 
 * the value initialization does the following
-    * for classes with at least one public constructor, the default constructor is called
-    * for non-union classes with no declared constructor, the object is zero-initialized, and the default constructor is called
+    * **for classes with at least one public constructor, the default constructor is called**
+    * **for non-union classes with no declared constructor, the object is zero-initialized, and the default constructor is called**
     * for arrays, the element is value-initialized
     * for other cases, the variable is zero-initialized
 
