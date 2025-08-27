@@ -32,10 +32,12 @@ int main()
 {
     std::mutex m;
     std::cout << f1(0) << std::endl;                            // 0 is implicitly converted to nullptr
-    // std::cout << lockAndCall(f1, m, 0) << std::endl;         // implicit conversion won't be considered inside template function
+    // the template will deduce P as int, but there is no std::shared_ptr constructor that takes int
+    // std::cout << lockAndCall(f1, m, 0) << std::endl;
 
     std::cout << f2(NULL) << std::endl;                         // NULL is implicitly converted to nullptr
-    // std::cout << lockAndCall(f2, m, NULL) << std::endl;      // same as above
+    // the template will deduce P as int, but there is no std::unique_ptr constructor that takes int
+    // std::cout << lockAndCall(f2, m, NULL) << std::endl;
 
     std::cout << f3(nullptr) << std::endl;
     std::cout << lockAndCall(f3, m, nullptr) << std::endl;
