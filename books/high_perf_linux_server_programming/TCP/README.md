@@ -37,6 +37,17 @@
 * TCP `CLOSE_WAIT` means the remote side has closed its sie, but the local end is still waiting for its own application to shutdown.
 * if a TCP connection is stuck in `CLOSE_WAIT` for a long time, it is a sign of an application-level problem.
     * for HTTP server, if the HTTP request client has closed the TCP connection, but the server is still busy processing the HTTP request, the TCP connection on the server will be stuck in `CLOSE_WAIT` for a while.
+
+## TCP data transfer: interactive vs bulk
+* interactive traffic is characterized by small, frequent data transmissions that require low latency. The user often waits for a response before proceeding, making responsiveness critical.
+* "Chunk" traffic is the large, continuous streams of data transferred in bulk. The primary goal of this type of transfer is high throughput to move a large amount of data as quickly as possible.
+
+## TCP delayed ACK
+* TCP delayed ACK is a mechanism where TCP doesn't immediately send an acknowledgement(ACK) for every single data packet it receives; instead, it wait for a short period(40ms or 500ms) to see if it can "piggyback" the ACK onto an outgoing data packet or to acknowledge multiple incoming packets with a single ACK.
+
+## TCP receive window
+* The TCP receive window is a value advertised by a receiver to a sender, indicating how much data, in bytes, the receiver can buffer and accept before it needs to send an acknowledgment.
+* The TCP receiver window is attached to the ACK from the receiver:
  
 ## TCP out-of-band (OOB)
 
