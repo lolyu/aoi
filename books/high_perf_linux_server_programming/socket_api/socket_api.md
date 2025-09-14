@@ -72,6 +72,43 @@ ssize_t recv(int sockfd, void *buf, size_t len, int flags)
 |`MSG_OOB`|send/receive OOB|Y|Y|
 |`MSG_NOSIGNAL`||Y|N|
 
+## recvfrom && sendto
+* UDP read/write functions:
+
+```cpp
+#include <sys/types.h>
+#include <sys/socket.h>
+
+ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
+                 struct sockaddr *src_addr, socklen_t *addrlen);
+ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
+               const struct sockaddr *dest_addr, socklen_t addrlen);
+```
+
+## recvmsg && sendmsg
+```cpp
+#include <sys/types.h>
+#include <sys/socket.h>
+
+ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags);
+ssize_t sendmsg(int sockfd, const struct msghdr *msg, int flags);
+
+struct msghdr {
+    void         *msg_name;       /* optional address */
+    socklen_t     msg_namelen;    /* size of address */
+    struct iovec *msg_iov;        /* scatter/gather array */
+    size_t        msg_iovlen;     /* # elements in msg_iov */
+    void         *msg_control;    /* ancillary data, see below */
+    size_t        msg_controllen; /* ancillary data buffer len */
+    int           msg_flags;      /* flags on received message */
+};
+
+struct iovec {                    /* Scatter/gather array items */
+    void  *iov_base;              /* Starting address */
+    size_t iov_len;               /* Number of bytes to transfer */
+};
+```
+
 ## references
 * https://man7.org/linux/man-pages/man2/send.2.html
 * https://man7.org/linux/man-pages/man2/recv.2.html
