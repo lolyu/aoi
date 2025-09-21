@@ -1,4 +1,4 @@
-# saiplayer
+<img width="935" height="28" alt="image" src="https://github.com/user-attachments/assets/c5b06a5c-31b8-4582-9700-5dd9eb471454" /><img width="510" height="28" alt="image" src="https://github.com/user-attachments/assets/0f8f8237-32e5-420b-8510-fddbdf7a900c" /># saiplayer
 
 
 ```
@@ -9,8 +9,13 @@
 # docker exec swss supervisorctl stop supervisor-proc-exit-listener
 # docker exec swss supervisorctl stop orchagent
 # docker exec -it syncd bash
-# redis-cli flushall; supervisorctl restart syncd
-# saiplayer -u -d -m -p /etc/sai.d/sai.profile sairedis.rec
+# supervisorctl stop supervisor-proc-exit-listener
+# pkill syncd
+# redis-cli flushall; redis-cli -n 4 hmset "LOGGER|syncd" LOGLEVEL INFO LOGOUTPUT SYSLOG
+# /usr/bin/syncd --diag -u -s -B null -p /etc/sai.d/sai.profile -b /tmp/break_before_make_objects
+# saiplayer  -m -u  -d  sairedis.rec
+# echo $?
+# 0
 ```
 
 ```
