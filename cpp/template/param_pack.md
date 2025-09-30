@@ -89,5 +89,61 @@ struct alignas(T...) storage
 };
 ```
 
+## `sizeof...(pack)`
+## `folds`
+```cpp
+int sum(std::convertible_to<int> auto ...i)
+{
+    return (0 + ... + i);
+}
+```
+* folds: https://en.cppreference.com/w/cpp/language/fold.html
+
+## capture parameter packs
+* parameterpackets can only be captured in three context:
+    * template parameter pack
+    * function parameter pack
+    * init-capture pack
+
+### template parameter pack
+### function parameter pack
+### init-capture pack
+
+
+## idioms
+
+### recurse over argument lists
+```cpp
+void printall(const auto &...args)
+{
+    // binary left fold
+    (std::cout << ... << args);
+    std::cout << std::endl;
+}
+```
+
+### recurse over template parameters
+```cpp
+template <char... Cs>
+struct string_holder
+{
+    static constexpr std::size_t len = sizeof...(Cs);
+    static constexpr char value[] = {Cs..., '\0'};
+    constexpr operator const char *() const { return value; }
+    constexpr operator std::string() const { return {value, len}; }
+};
+
+template <size_t N, char... Digits>
+auto index_string()
+{
+    if constexpr (N < 10)
+        return string_holder<N + '0', Digits...>{};
+    else
+        return index_string<N / 10, (N % 10) + '0', Digits...>();
+}
+
+const char *STR_1024 = index_string<1024>();
+```
+
 ## references
 * 
