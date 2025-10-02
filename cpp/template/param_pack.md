@@ -123,6 +123,7 @@ void printall(const auto &...args)
 ```
 
 ### recurse over template parameters
+* `add_commas` version#1
 ```cpp
 template <char... Cs>
 struct string_holder
@@ -134,15 +135,57 @@ struct string_holder
 };
 
 template <size_t N, char... Digits>
+auto add_commas()
+{
+    if constexpr ((sizeof...(Digits) == 3) || (sizeof...(Digits) > 4 && (sizeof...(Digits) % 4 == 3)))
+    {
+        return add_commas<N, ',', Digits...>();
+    }
+    else
+    {
+        if constexpr (N < 10)
+            return string_holder<N + '0', Digits...>{};
+        else
+            return add_commas<N / 10, (N % 10) + '0', Digits...>();
+    }
+}
+```
+* `add_commas` version#2
+
+```cpp
+template <char... Cs>
+struct string_holder
+{
+    static constexpr std::size_t len = sizeof...(Cs);
+    static constexpr char value[] = {Cs..., '\0'};
+    constexpr operator const char *() const { return value; }
+    constexpr operator std::string() const { return {value, len}; }
+};
+
+template <size_t N, char... Cs>
 auto index_string()
 {
     if constexpr (N < 10)
-        return string_holder<N + '0', Digits...>{};
+        return string_holder<N + '0', Cs...>{};
     else
-        return index_string<N / 10, (N % 10) + '0', Digits...>();
+        return index_string<N / 10, (N % 10) + '0', Cs...>();
 }
 
-const char *STR_1024 = index_string<1024>();
+template <char ...Out>
+auto add_commas(string_holder<>, string_holder<Out...> output)
+{
+    return output;
+}
+
+template <char ...Rest, char First, char ...Out>
+auto add_commas(string_holder<First, Rest...> input, string_holder<Out...> output = {})
+{
+    if constexpr (sizeof...(Rest) > 0 && sizeof...(Rest) % 3 == 0)
+        return add_commas(string_holder<Rest...>{}, string_holder<Out..., First, ','>{});
+    else
+        return add_commas(string_holder<Rest...>{}, string_holder<Out..., First>{});
+}
+
 ```
 
 ## references
