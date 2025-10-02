@@ -1,6 +1,6 @@
 # saiplayer
 
-
+## how to use saiplayer?
 ```
 /usr/bin/syncd --diag -u -s -Bnull -p /etc/sai.d/sai.profile -b /tmp/break_before_make_objects
 ```
@@ -25,5 +25,8 @@
 2025 Sep  9 06:59:53.094912 bjw2-can-7260-7 NOTICE syncd#saiplayer: :- replay: got: SAI_STATUS_SUCCESS
 2025 Sep  9 06:59:53.095007 bjw2-can-7260-7 NOTICE syncd#saiplayer: :- replay:  - SAI_VLAN_ATTR_MEMBER_LIST:0:null
 ```
+
+## saiplayer internals
+
 
 ## references
