@@ -1,0 +1,17 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+
+  config.vm.box = "generic/ubuntu2204"
+
+  vmcpu=(ENV['VPP_VAGRANT_VMCPU'] || 2)
+  vmram=(ENV['VPP_VAGRANT_VMRAM'] || 4096)
+
+  config.ssh.forward_agent = true
+
+  config.vm.provider "libvirt" do |vb|
+      vb.memory = "#{vmram}"
+      vb.cpus = "#{vmcpu}"
+  end
+end

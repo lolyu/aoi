@@ -16,3 +16,23 @@ $ newgrp vpp
 ```
 
 * a reboot is needed to apply the hugepage config
+
+## setup vagrant
+
+```
+# sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-dev
+# vagrant plugin install vagrant-libvirt
+# vagrant up
+```
+
+## running VPP
+
+* start VPP instance
+```
+# sudo /usr/bin/vpp -c startup1.conf
+```
+
+* connect VPP instance
+```
+# sudo vppctl -s /run/vpp/cli-vpp1.sock
+```
