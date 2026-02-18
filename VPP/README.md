@@ -11,6 +11,10 @@
     * [VPP metrics](https://github.com/lolyu/aoi/blob/master/VPP/vpp_metrics.md)
   * architecture
     * [VPP architecture](https://github.com/lolyu/aoi/blob/master/VPP/vpp_architecture.md)
+  * sonic VPP
+    * build and testbed setup:
+      * [build VPP kvm image](https://github.com/sonic-net/sonic-platform-vpp/blob/master/README.md)
+      * [setup testbed](https://github.com/sonic-net/sonic-mgmt/blob/master/docs/testbed/README.testbed.VPP.md)
 
 ## references
 * https://my-vpp-docs.readthedocs.io/en/latest/
