@@ -391,6 +391,94 @@ sairedis::SaiInterface  (pure abstract, meta/SaiInterface.h)
 | `VirtualSwitchSaiInterface` | `vslib/` | `vslib/Sai.cpp` | **vslib** (in-memory switch state) |
 | `Sai` | `proxylib/` | `proxylib/Sai.cpp` | **saiproxy** (intercept/forward SAI calls) |
 
+## how does orchagent init the SAI API?
+
+**Auto-generated** `sai_redis.cpp` by `stub.pl` from the SAI header files (`SAI/inc/sai*.h`, `SAI/experimental/sai*.h`). Never edit by hand. Regenerated with:
+
+```sh
+stub.pl -d ../SAI/ -c ClientServerSai -n sairedis -f sai_redis.cpp -s stub
+```
+
+
+### 1. Global Stub Instance
+
+```cpp
+static std::shared_ptr<sairedis::SaiInterface> stub =
+    std::make_shared<sairedis::ClientServerSai>();
+```
+
+All generated functions delegate to this single shared instance.
+
+---
+
+### 2. API Structs (9571 lines, 71 SAI APIs)
+
+For each SAI API module, the file generates:
+- **Static wrapper functions** (`stub_create_*`, `stub_remove_*`, `stub_set_*_attribute`, `stub_get_*_attribute`, `stub_get_*_stats`, `stub_clear_*_stats`, bulk variants, etc.) that forward calls to `stub->method(SAI_OBJECT_TYPE_X, ...)`.
+- **A static `sai_xxx_api_t` struct** populated with pointers to those wrapper functions.
+
+APIs covered:
+
+| Standard SAI | DASH Extensions |
+|---|---|
+| SWITCH, PORT, FDB, VLAN | DASH_ACL |
+| VIRTUAL_ROUTER, ROUTE | DASH_DIRECTION_LOOKUP |
+| NEXT_HOP, NEXT_HOP_GROUP | DASH_ENI |
+| ROUTER_INTERFACE, NEIGHBOR | DASH_INBOUND_ROUTING |
+| ACL, HOSTIF, MIRROR | DASH_METER |
+| SAMPLEPACKET, STP, LAG | DASH_OUTBOUND_CA_TO_PA |
+| POLICER, WRED, QOS_MAP | DASH_OUTBOUND_ROUTING |
+| QUEUE, SCHEDULER | DASH_VNET, DASH_PA_VALIDATION |
+| SCHEDULER_GROUP, BUFFER | DASH_VIP, DASH_HA |
+| HASH, UDF, TUNNEL | DASH_TUNNEL, DASH_FLOW |
+| L2MC, IPMC, RPF_GROUP | DASH_APPLIANCE |
+| L2MC_GROUP, IPMC_GROUP | DASH_OUTBOUND_PORT_MAP |
+| MCAST_FDB, BRIDGE, TAM | DASH_TRUSTED_VNI |
+| SRV6, MPLS, DTEL, BFD | |
+| ISOLATION_GROUP, NAT | |
+| COUNTER, DEBUG_COUNTER | |
+| MACSEC, SYSTEM_PORT | |
+| MY_MAC, IPSEC | |
+| GENERIC_PROGRAMMABLE | |
+| ARS, ARS_PROFILE, TWAMP | |
+| POE, ICMP_ECHO | |
+| PREFIX_COMPRESSION, SYNCE | |
+| BMTOR | |
+
+---
+
+### 3. `sai_api_query()` (~71-case switch)
+
+Routes `SAI_API_*` enum values to the corresponding `&stub_xxx` struct pointer, returning it via `void** api_method_table`.
+
+---
+
+### 4. Global SAI Functions
+
+| Function | Delegates to |
+|---|---|
+| `sai_api_initialize()` | `stub->apiInitialize()` |
+| `sai_api_uninitialize()` | `stub->apiUninitialize()` |
+| `sai_api_query()` | switch over all APIs |
+| `sai_object_type_query()` | `stub->objectTypeQuery()` |
+| `sai_switch_id_query()` | `stub->switchIdQuery()` |
+| `sai_log_set()` | `stub->logSet()` |
+| `sai_query_api_version()` | `stub->queryApiVersion()` |
+| `sai_query_attribute_capability()` | `stub->queryAttributeCapability()` |
+| `sai_query_stats_capability()` | `stub->queryStatsCapability()` |
+| `sai_query_stats_st_capability()` | `stub->queryStatsStCapability()` |
+| `sai_object_type_get_availability()` | `stub->objectTypeGetAvailability()` |
+| `sai_bulk_get_attribute()` | `SAI_STATUS_NOT_IMPLEMENTED` ⚠️ |
+| `sai_bulk_object_clear_stats()` | `SAI_STATUS_NOT_IMPLEMENTED` ⚠️ |
+| `sai_bulk_object_get_stats()` | `SAI_STATUS_NOT_IMPLEMENTED` ⚠️ |
+| `sai_dbg_generate_dump()` | `SAI_STATUS_NOT_IMPLEMENTED` ⚠️ |
+| `sai_get_maximum_attribute_count()` | `SAI_STATUS_NOT_IMPLEMENTED` ⚠️ |
+| `sai_get_object_count()` | `SAI_STATUS_NOT_IMPLEMENTED` ⚠️ |
+| `sai_get_object_key()` | `SAI_STATUS_NOT_IMPLEMENTED` ⚠️ |
+| `sai_tam_telemetry_get_data()` | `SAI_STATUS_NOT_IMPLEMENTED` ⚠️ |
+| `sai_query_object_stage()` | `SAI_STATUS_NOT_IMPLEMENTED` ⚠️ |
+
+
 ## how does orchagent talk to syncd?
 
 
