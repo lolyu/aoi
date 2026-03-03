@@ -436,17 +436,21 @@ sairedis::SaiInterface  (pure abstract, meta/SaiInterface.h)
          └── used by saiplayer for SAI call replay
 ```
 
+
+```
+
 | Class | Directory | Instantiated in | Used by | Notes |
 |---|---|---|---|---|
-| `Meta` | `meta/` | `lib/Context.cpp`, `vslib/Sai.cpp` | Client-side validation | Wraps RemoteSai or VirtualSwitchSai |
+| `Meta` | `meta/` | `lib/Context.cpp`, `vslib/Sai.cpp`, `saivpp/Sai.cpp` | Client-side + VPP syncd | Wraps RemoteSai, VirtualSwitchSai, or saivpp |
 | `RedisRemoteSaiInterface` | `lib/` | `lib/Context.cpp` | **orchagent** clients | Supports Redis or ZMQ channels |
 | `VendorSai` | `syncd/` | `syncd/syncd_main.cpp` | **syncd** daemon | Calls vendor SAI .so directly |
 | `Sai` | `lib/` | via `sai_api_initialize()` | **orchagent** entry point | Manages Context objects per switch |
+| `Sai` | `saivpp/` | `syncd/syncd_main.cpp` (VPP) | **syncd-vpp** daemon | VPP SONiC implementation |
+| `VirtualSwitchSaiInterface` | `vslib/` | `vslib/Sai.cpp`, `saivpp/Sai.cpp` | vslib + VPP backend | In-memory switch state (vslib) or VPP interface (saivpp) |
 | `ClientSai` | `lib/` | `lib/ClientSai.cpp` | Alternative RPC client | **ZMQ only** (not Redis) |
 | `ServerSai` | `lib/` | `lib/ServerSai.cpp` | RPC server | Wraps any SaiInterface backend |
 | `ClientServerSai` | `lib/` | `saiplayer/saiplayer_main.cpp` | **saiplayer** replay tool | Switchable backend wrapper |
 | `Sai` | `vslib/` | `vslib/Sai.cpp` | Virtual switch testing | Software-only SAI |
-| `VirtualSwitchSaiInterface` | `vslib/` | `vslib/Sai.cpp` | **vslib** backend | In-memory switch state |
 | `Sai` | `proxylib/` | `proxylib/Sai.cpp` | **saiproxy** forwarding | JSON over Channel |
 | `DummySaiInterface` | `meta/` | unit tests | Test infrastructure | Configurable stub responses |
 
