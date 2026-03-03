@@ -322,9 +322,19 @@ sairedis::SaiInterface  (pure abstract, meta/SaiInterface.h)
 │     Manages multiple Context objects (one per switch);
 │     routes calls and runs a recording/notification thread.
 │
+├── sairedis::RemoteSaiInterface     (lib/RemoteSaiInterface.h)
+│     Abstract interface for remote SAI implementations.
+│     Extends SaiInterface with notifySyncd API for communication
+│     with syncd process.
+│     └── RedisRemoteSaiInterface    (lib/RedisRemoteSaiInterface.h)
+│           Used by Context in orchagent. Supports both RedisChannel
+│           (async, default) and ZeroMQChannel (sync, when zmqEnable).
+│           Wrapped by Meta for validation before sending to syncd.
+│
 ├── sairedis::ClientSai              (lib/ClientSai.h)
-│     RPC client. Serializes SAI calls over a Channel (Redis/ZMQ)
-│     and waits for responses from a remote ServerSai.
+│     RPC client using ZeroMQ only (not Redis).
+│     Serializes SAI calls over ZMQ and waits for responses from
+│     a remote ServerSai. Alternative to RedisRemoteSaiInterface.
 │
 ├── sairedis::ServerSai              (lib/ServerSai.h)
 │     RPC server. Listens on a SelectableChannel for serialized
@@ -350,46 +360,95 @@ sairedis::SaiInterface  (pure abstract, meta/SaiInterface.h)
 ### How They Layer Together
 
 ```
-[orchagent / SONiC daemons]          [saiplayer]          [unit tests]
-         │                                │                     │
-         ▼                                ▼                     ▼
-      lib/Sai                    ClientServerSai         DummySaiInterface
-  (sai_api_initialize)          (saiplayer binary)       (MockSaiInterface)
-         │
-         ├─── production (Redis/ZMQ) ────────────────────────────┐
-         ▼                                                        │
-      ClientSai                                                   │
-    (lib/ClientSai)                                               │
-         │  ZMQ/Redis channel                                     │
-         ▼                                                        │
-      ServerSai                                                   │
-    (lib/ServerSai, runs in syncd process)                        │
-         │                                                        │
-         ▼                                                        ▼
-      Meta (validation)                                Meta (validation)
-    (meta/Meta, in syncd)                            (meta/Meta, in vslib)
-         │                                                        │
-         ▼                                                        ▼
-      VendorSai                                  VirtualSwitchSaiInterface
-    (syncd/VendorSai)                              (vslib/Sai, software)
-    [syncd daemon]                               [virtual switch / testing]
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ORCHAGENT / SONiC Client Applications (main production path)               │
+└─────────────────────────────────────────────────────────────────────────────┘
+         │ sai_api_initialize()
+         ▼
+      lib/Sai ────────────────────────────────────────────── manages contexts
          │
          ▼
-    Vendor SDK / Hardware
+      Context (per switch) ──────────────────────────────── lib/Context.cpp
+         │
+         ├── creates RedisRemoteSaiInterface ────────────── Redis or ZMQ channel
+         └── wraps with Meta (validation) ───────────────── saimeta::Meta
+                   │
+                   │ validates attributes, enforces SAI rules
+                   ▼
+         RedisRemoteSaiInterface ──────────────────────────  lib/RedisRemoteSaiInterface
+                   │
+                   ├── RedisChannel (async, default)
+                   └── ZeroMQChannel (sync, when zmqEnable=true)
+                   │
+                   │ serializes SAI calls
+                   ▼
+         ══════════════════════════════════════════════════════════════════════
+              Redis ASIC_DB / ZeroMQ socket (IPC boundary)
+         ══════════════════════════════════════════════════════════════════════
+                   │
+                   ▼
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  SYNCD Daemon (hardware abstraction layer)                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+         │
+      Syncd ───────────────────────────────────────────────── syncd/Syncd.cpp
+         │
+         ├── RedisSelectableChannel (reads ASIC_DB)
+         │   or ZeroMQSelectableChannel
+         │
+         ├── receives & deserializes commands
+         │
+         └── calls VendorSai directly (no Meta!) ─────────── syncd/VendorSai.h
+                   │
+                   │ calls vendor SAI implementation
+                   ▼
+         ══════════════════════════════════════════════════════════════════════
+              Vendor SAI shared library (.so)
+         ══════════════════════════════════════════════════════════════════════
+                   │
+                   ▼
+            Hardware / SDK
+
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ALTERNATIVE PATHS                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+   ClientSai (ZMQ-only RPC) ────────────────────────────────── lib/ClientSai.h
+         │
+         │ ZeroMQChannel only
+         ▼
+      ServerSai ───────────────────────────────────────────── lib/ServerSai.h
+         │
+         └── dispatches to any SaiInterface backend
+
+   vslib/Sai (virtual switch) ──────────────────────────────── vslib/Sai.h
+         │
+         ├── wraps with Meta (validation)
+         └── VirtualSwitchSaiInterface ───────────────────── pure software SAI
+                   │
+                   └── in-memory switch state (no hardware)
+
+   ClientServerSai (switchable wrapper) ───────────────── lib/ClientServerSai.h
+         │
+         └── used by saiplayer for SAI call replay
 ```
 
-| Class | Directory | Instantiated in | Used by |
-|---|---|---|---|
-| `Meta` | `meta/` | `lib/Context.cpp`, `vslib/Sai.cpp` | All paths — validation wrapper |
-| `DummySaiInterface` | `meta/` | unit tests | Test mocks (`MockSaiInterface`, `MockableSaiInterface`) |
-| `VendorSai` | `syncd/` | `syncd/syncd_main.cpp` | **syncd** daemon (real HW) |
-| `Sai` | `lib/` | via `sai_api_initialize()` | **orchagent** and all SONiC SAI clients |
-| `ClientSai` | `lib/` | `lib/ClientServerSai.cpp` | Client side of ZMQ/Redis RPC |
-| `ServerSai` | `lib/` | `lib/ClientServerSai.cpp` | Server side of ZMQ/Redis RPC (in **syncd**) |
-| `ClientServerSai` | `lib/` | `saiplayer/saiplayer_main.cpp` | **saiplayer** binary (SAI call replay) |
-| `Sai` | `vslib/` | `vslib/Sai.cpp` | Virtual switch / software simulation |
-| `VirtualSwitchSaiInterface` | `vslib/` | `vslib/Sai.cpp` | **vslib** (in-memory switch state) |
-| `Sai` | `proxylib/` | `proxylib/Sai.cpp` | **saiproxy** (intercept/forward SAI calls) |
+| Class | Directory | Instantiated in | Used by | Notes |
+|---|---|---|---|---|
+| `Meta` | `meta/` | `lib/Context.cpp`, `vslib/Sai.cpp` | Client-side validation | Wraps RemoteSai or VirtualSwitchSai |
+| `RedisRemoteSaiInterface` | `lib/` | `lib/Context.cpp` | **orchagent** clients | Supports Redis or ZMQ channels |
+| `VendorSai` | `syncd/` | `syncd/syncd_main.cpp` | **syncd** daemon | Calls vendor SAI .so directly |
+| `Sai` | `lib/` | via `sai_api_initialize()` | **orchagent** entry point | Manages Context objects per switch |
+| `ClientSai` | `lib/` | `lib/ClientSai.cpp` | Alternative RPC client | **ZMQ only** (not Redis) |
+| `ServerSai` | `lib/` | `lib/ServerSai.cpp` | RPC server | Wraps any SaiInterface backend |
+| `ClientServerSai` | `lib/` | `saiplayer/saiplayer_main.cpp` | **saiplayer** replay tool | Switchable backend wrapper |
+| `Sai` | `vslib/` | `vslib/Sai.cpp` | Virtual switch testing | Software-only SAI |
+| `VirtualSwitchSaiInterface` | `vslib/` | `vslib/Sai.cpp` | **vslib** backend | In-memory switch state |
+| `Sai` | `proxylib/` | `proxylib/Sai.cpp` | **saiproxy** forwarding | JSON over Channel |
+| `DummySaiInterface` | `meta/` | unit tests | Test infrastructure | Configurable stub responses |
 
 ## how does orchagent init the SAI API?
 
@@ -480,7 +539,7 @@ Routes `SAI_API_*` enum values to the corresponding `&stub_xxx` struct pointer, 
 
 
 ## how does orchagent talk to syncd?
-
+Refer above
 
 ## how does syncd handles warm-reboot?
 
