@@ -437,8 +437,6 @@ sairedis::SaiInterface  (pure abstract, meta/SaiInterface.h)
 ```
 
 
-```
-
 | Class | Directory | Instantiated in | Used by | Notes |
 |---|---|---|---|---|
 | `Meta` | `meta/` | `lib/Context.cpp`, `vslib/Sai.cpp`, `saivpp/Sai.cpp` | Client-side + VPP syncd | Wraps RemoteSai, VirtualSwitchSai, or saivpp |
