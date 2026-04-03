@@ -19,7 +19,6 @@
     * [VPP Headers Cheatsheet](https://github.com/lolyu/aoi/blob/master/VPP/vpp_headers_cheatsheet.md)
     * [VPP data structures](https://github.com/lolyu/aoi/blob/master/VPP/vpp_data_structures.md)
   * sonic VPP
-    * [learning plan](https://github.com/sonic-net/sonic-mgmt/blob/master/docs/testbed/sonic_vpp_learning_plan.md)
     * build and testbed setup:
       * [build VPP kvm image](https://github.com/sonic-net/sonic-platform-vpp/blob/master/README.md)
       * [setup testbed](https://github.com/sonic-net/sonic-mgmt/blob/master/docs/testbed/README.testbed.VPP.md)
