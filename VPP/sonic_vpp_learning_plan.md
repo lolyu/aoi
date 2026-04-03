@@ -294,7 +294,409 @@ void setup_message_handlers(void)
 }
 ```
 
-#### 1.3.4 Practical Example: Add IP Route via Binary API
+#### 1.3.4 Building and Running Your First VPP API Client
+
+**Goal:** Create a working VPP API client program
+
+⚠️ **Important Note About VPP API Versions:**
+
+The C Binary API shown in section 1.3.3 uses the old `vlibapi`/`vlibmemory` approach which works for VPP <25.x. Modern VPP 26.x+ has changed its API structure significantly.
+
+**For practical learning, we provide 3 working examples in `/aoi/VPP/examples/`:**
+
+1. **Python API** (Easiest - Recommended)
+2. **CLI via popen()** (Simple C approach - Works for VPP 26.x)
+3. **Binary API in C** (Advanced - needs update for VPP 26.x)
+
+Let's walk through the easiest approach first:
+
+---
+
+**Step 1: Python API (Recommended for Learning)**
+
+**Why Python?**
+- Same functionality as C Binary API
+- 90% less code
+- No compilation needed
+- API changes are handled automatically
+- Perfect for learning concepts
+
+**Complete Working Example:**
+
+See [`vpp_list_interfaces.py`](examples/vpp_list_interfaces.py):
+
+```python
+#!/usr/bin/env python3
+from vpp_papi import VPPApiClient
+import sys
+
+# Connect to VPP
+vpp = VPPApiClient(apifiles=['/usr/share/vpp/api'])
+vpp.connect("vpp_list_interfaces")
+
+# Get VPP version
+version = vpp.api.show_version()
+print(f"VPP Version: {version.version.decode('utf-8')}")
+
+# Dump all interfaces
+interfaces = vpp.api.sw_interface_dump(sw_if_index=0xFFFFFFFF)
+
+# Print each interface
+for intf in interfaces:
+    name = intf.interface_name.decode('utf-8')
+    index = intf.sw_if_index
+    admin_up = "UP" if intf.flags & 1 else "DOWN"
+    link_up = "UP" if intf.flags & 2 else "DOWN"
+    print(f"{name} - Index: {index}, Admin: {admin_up}, Link: {link_up}")
+
+vpp.disconnect()
+```
+
+**How to Run:**
+
+```bash
+# Install Python API
+sudo apt-get install python3-vpp-api
+
+# Make executable
+cd /home/lolv/workspace/repo/vpp/aoi/VPP/examples
+chmod +x vpp_list_interfaces.py
+
+# Run
+sudo ./vpp_list_interfaces.py
+```
+
+**Expected Output:**
+```
+Connecting to VPP...
+Connected to VPP!
+
+VPP Version: v26.02-release
+
+Found 5 interfaces:
+Name                           Index      Admin      Link      
+----                           -----      -----      ----      
+local0                         0          DOWN       DOWN      
+GigabitEthernet0/0/0          1          UP         UP        
+GigabitEthernet0/0/1          2          UP         DOWN      
+loop0                          3          UP         UP        
+tap0                           4          UP         UP        
+```
+
+---
+
+**Step 2: Simple C Approach (No VPP Headers Required)**
+
+For those who need C but want to avoid API complexity:
+
+See [`vpp_simple_cli.c`](examples/vpp_simple_cli.c):
+
+```c
+/*
+ * vpp_list_interfaces.c - List all VPP interfaces using Binary API
+ * 
+ * Build: gcc -o vpp_list_interfaces vpp_list_interfaces.c \
+ *        -lvppinfra -lvlibmemoryclient -lsvm -lpthread
+ * Run: sudo ./vpp_list_interfaces
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <vppinfra/clib.h>
+#include <vlibapi/api.h>
+#include <vlibmemory/api.h>
+#include <vpp/api/vpe_msg_enum.h>
+
+// Import type definitions
+#define vl_typedefs
+#include <vpp/api/vpe_all_api_h.h>
+#undef vl_typedefs
+
+// Import message ID definitions
+#define vl_msg_id(n,h) n,
+typedef enum {
+    VL_MSG_FIRST_AVAILABLE = 0,
+#include <vpp/api/vpe_all_api_h.h>
+    VL_MSG_BUILTIN_LAST
+} vl_msg_id_t;
+#undef vl_msg_id
+
+// Storage for interfaces
+typedef struct {
+    u32 sw_if_index;
+    u8 interface_name[64];
+    u8 admin_up;
+    u8 link_up;
+} interface_info_t;
+
+static interface_info_t interfaces[256];
+static int interface_count = 0;
+static volatile int dump_complete = 0;
+
+// Handler for interface details (called once per interface)
+static void vl_api_sw_interface_details_t_handler(
+    vl_api_sw_interface_details_t *mp)
+{
+    if (interface_count < 256) {
+        interfaces[interface_count].sw_if_index = ntohl(mp->sw_if_index);
+        strncpy((char*)interfaces[interface_count].interface_name, 
+                (char*)mp->interface_name, 
+                sizeof(interfaces[interface_count].interface_name) - 1);
+        interfaces[interface_count].admin_up = 
+            (mp->flags & IF_STATUS_API_FLAG_ADMIN_UP) ? 1 : 0;
+        interfaces[interface_count].link_up = 
+            (mp->flags & IF_STATUS_API_FLAG_LINK_UP) ? 1 : 0;
+        interface_count++;
+    }
+}
+
+// Handler for control ping reply (signals end of dump)
+static void vl_api_control_ping_reply_t_handler(
+    vl_api_control_ping_reply_t *mp)
+{
+    dump_complete = 1;
+}
+
+// Register message handlers
+#define foreach_vpe_api_reply_msg                                   \
+_(SW_INTERFACE_DETAILS, sw_interface_details)                       \
+_(CONTROL_PING_REPLY, control_ping_reply)
+
+static void setup_message_handlers(void)
+{
+#define _(N,n)                                                      \
+    vl_msg_api_set_handlers(VL_API_##N, #n,                       \
+                           vl_api_##n##_t_handler,                 \
+                           vl_noop_handler,                        \
+                           vl_api_##n##_t_endian,                  \
+                           vl_api_##n##_t_print,                   \
+                           sizeof(vl_api_##n##_t), 1);
+    foreach_vpe_api_reply_msg;
+#undef _
+}
+
+int main(int argc, char **argv)
+{
+    vl_api_sw_interface_dump_t *dump_mp;
+    vl_api_control_ping_t *ping_mp;
+    int timeout;
+    
+    printf("Connecting to VPP...\n");
+    
+    // Connect to VPP
+    if (vl_client_connect_to_vlib("/vpe-api", "vpp_list_interfaces", 32) < 0) {
+        fprintf(stderr, "Failed to connect to VPP\n");
+        fprintf(stderr, "Make sure VPP is running: sudo systemctl status vpp\n");
+        return 1;
+    }
+    
+    printf("Connected to VPP!\n");
+    
+    // Setup message handlers
+    setup_message_handlers();
+    
+    // Send dump request
+    dump_mp = vl_msg_api_alloc(sizeof(*dump_mp));
+    memset(dump_mp, 0, sizeof(*dump_mp));
+    dump_mp->_vl_msg_id = ntohs(VL_API_SW_INTERFACE_DUMP);
+    dump_mp->sw_if_index = ~0;  // All interfaces
+    dump_mp->name_filter_valid = 0;
+    
+    vl_msg_api_send_shmem(vlibapi_get_main()->vl_input_queue, (u8 *)&dump_mp);
+    
+    // Send control ping to mark end of dump
+    ping_mp = vl_msg_api_alloc(sizeof(*ping_mp));
+    memset(ping_mp, 0, sizeof(*ping_mp));
+    ping_mp->_vl_msg_id = ntohs(VL_API_CONTROL_PING);
+    
+    vl_msg_api_send_shmem(vlibapi_get_main()->vl_input_queue, (u8 *)&ping_mp);
+    
+    // Wait for replies (with timeout)
+    timeout = 50;  // 5 seconds (50 * 100ms)
+    while (!dump_complete && timeout-- > 0) {
+        usleep(100000);  // 100ms
+    }
+    
+    if (!dump_complete) {
+        fprintf(stderr, "Timeout waiting for VPP response\n");
+        vl_client_disconnect_from_vlib();
+        return 1;
+    }
+    
+    // Print results
+    printf("\nFound %d interfaces:\n", interface_count);
+    printf("%-20s %-10s %-10s %-10s\n", "Name", "Index", "Admin", "Link");
+    printf("%-20s %-10s %-10s %-10s\n", "----", "-----", "-----", "----");
+    
+    for (int i = 0; i < interface_count; i++) {
+        printf("%-20s %-10u %-10s %-10s\n",
+               interfaces[i].interface_name,
+               interfaces[i].sw_if_index,
+               interfaces[i].admin_up ? "UP" : "DOWN",
+               interfaces[i].link_up ? "UP" : "DOWN");
+    }
+    
+    // Cleanup
+    vl_client_disconnect_from_vlib();
+    
+    return 0;
+}
+```
+
+**Step 3: Build the Program**
+
+```bash
+# Create build directory
+mkdir -p ~/vpp-api-examples
+cd ~/vpp-api-examples
+
+# Save the code to vpp_list_interfaces.c
+# Then compile:
+
+gcc -o vpp_list_interfaces vpp_list_interfaces.c \
+    -I/usr/include/vpp \
+    -lvppinfra \
+    -lvlibmemoryclient \
+    -lsvm \
+    -lpthread
+
+# If using VPP built from source:
+gcc -o vpp_list_interfaces vpp_list_interfaces.c \
+    -I/path/to/vpp/build-root/install-vpp-native/vpp/include \
+    -L/path/to/vpp/build-root/install-vpp-native/vpp/lib \
+    -lvppinfra \
+    -lvlibmemoryclient \
+    -lsvm \
+    -lpthread \
+    -Wl,-rpath,/path/to/vpp/build-root/install-vpp-native/vpp/lib
+```
+
+**Step 4: Run the Program**
+
+```bash
+# Make sure VPP is running
+sudo systemctl start vpp
+sudo systemctl status vpp
+
+# Run the program (needs root for shared memory access)
+sudo ./vpp_list_interfaces
+
+# Expected output:
+# Connecting to VPP...
+# Connected to VPP!
+# 
+# Found 5 interfaces:
+# Name                 Index      Admin      Link      
+# ----                 -----      -----      ----      
+# local0               0          DOWN       DOWN      
+# GigabitEthernet0/0/0 1          UP         UP        
+# GigabitEthernet0/0/1 2          UP         DOWN      
+# loop0                3          UP         UP        
+# tap0                 4          UP         UP
+```
+
+**Step 5: Common Build Issues and Solutions**
+
+**Issue 1: "Cannot find vpp headers"**
+```bash
+# Solution: Install vpp-dev package
+sudo apt-get install vpp-dev
+
+# Or point to VPP source
+export VPP_DIR=/path/to/vpp
+gcc ... -I$VPP_DIR/build-root/install-vpp-native/vpp/include
+```
+
+**Issue 2: "Cannot connect to VPP"**
+```bash
+# Solution 1: Make sure VPP is running
+sudo systemctl status vpp
+
+# Solution 2: Check VPP API socket
+ls -la /run/vpp/api.sock
+# Should exist and be accessible
+
+# Solution 3: Run with sudo
+sudo ./vpp_list_interfaces
+```
+
+**Issue 3: "Undefined reference to vl_msg_api_*"**
+```bash
+# Solution: Add VPP libraries
+gcc ... -lvppinfra -lvlibmemoryclient -lsvm -lpthread
+
+# Check available libraries:
+ls /usr/lib/x86_64-linux-gnu/libvpp*
+# or
+ls /path/to/vpp/build-root/install-vpp-native/vpp/lib/
+```
+
+**Issue 4: "Library not found at runtime"**
+```bash
+# Solution: Set LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+
+# Or use rpath during build (recommended)
+gcc ... -Wl,-rpath,/usr/lib/x86_64-linux-gnu
+```
+
+**Step 6: Using in SONiC-VPP Context**
+
+In SONiC-VPP, the connection is already established in `SaiVppXlate.c`:
+
+```bash
+# See the actual initialization
+cd sonic-buildimage/platform/vpp/saivpp/src/vppxlate
+cat SaiVppXlate.c | grep -A 30 "vpp_connect"
+
+# The key function:
+# vac_connect("saivpp", NULL, NULL, 0)
+# Uses VAC (VPP API C library) which is a wrapper over vl_client_*
+```
+
+**Step 7: Testing with SONiC-VPP's syncd**
+
+```bash
+# In SONiC-VPP container
+docker exec -it syncd bash
+
+# Check VPP is running
+vppctl show version
+
+# The syncd process is already connected to VPP
+ps aux | grep syncd
+
+# You can inspect API calls with tracing
+vppctl api trace on
+# Do some SONiC operations (add route, etc)
+vppctl api trace save /tmp/api.txt
+cat /tmp/api.txt
+```
+
+**Checkpoint Exercises:**
+
+1. **Exercise**: Modify the example to also print interface IP addresses
+   - Hint: Use `sw_interface_get_table` or `ip_address_dump` API
+
+2. **Exercise**: Create a program that sets an interface admin state
+   - Use `sw_interface_set_flags` API
+   - Take interface name and state (up/down) as command line args
+
+3. **Exercise**: Add error handling for:
+   - VPP not running
+   - Invalid interface
+   - API timeout
+
+**Next Steps:**
+- Try the example with your local VPP instance
+- Experiment with modifying the code
+- Compare with how SONiC-VPP does it in `SaiVppXlate.c`
+- Ready to move to implementing real SAI features!
+
+#### 1.3.5 Practical Example: Add IP Route via Binary API
 
 This is what happens when SONiC-VPP adds a route!
 
@@ -362,7 +764,7 @@ int add_ip_route(const char *prefix_str, const char *nexthop_str)
 
 **This is EXACTLY what happens in `SaiVppXlate.c:ip_route_add_del()`!**
 
-#### 1.3.5 Dump Operations (Equivalent to "show" commands)
+#### 1.3.6 Dump Operations (Equivalent to "show" commands)
 
 When you run `vppctl show interface`, it uses a dump operation:
 
@@ -393,7 +795,7 @@ static void vl_api_sw_interface_details_t_handler(
 }
 ```
 
-#### 1.3.6 How SONiC-VPP Uses Binary API
+#### 1.3.7 How SONiC-VPP Uses Binary API
 
 **The Complete Flow:**
 
@@ -435,7 +837,7 @@ VPP detects link down
   → Send SAI notification to orchagent
 ```
 
-#### 1.3.7 Hands-on Practice
+#### 1.3.8 Hands-on Practice
 
 **Exercise 1: Connect to VPP and List Interfaces**
 
@@ -500,7 +902,7 @@ cat /tmp/api_trace.txt
 # You'll see the exact API messages sent!
 ```
 
-#### 1.3.8 Key Takeaways
+#### 1.3.9 Key Takeaways
 
 ✅ **CLI is just a wrapper** - Every vppctl command becomes a Binary API call  
 ✅ **SONiC-VPP uses the same API** - `SaiVppXlate.c` is a SAI-to-VPP-API translator  
@@ -508,7 +910,7 @@ cat /tmp/api_trace.txt
 ✅ **Shared memory is fast** - No socket overhead, zero-copy where possible  
 ✅ **Events enable async** - VPP can notify clients of link state changes  
 
-#### 1.3.9 Resources
+#### 1.3.10 Resources
 
 **VPP API Documentation:**
 - [VPP API Guide](https://s3-docs.fd.io/vpp/25.06/developer/corefeatures/api/index.html)
