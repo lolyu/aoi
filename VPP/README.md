@@ -18,6 +18,7 @@
     * [VPP Message Basics](https://github.com/lolyu/aoi/blob/master/VPP/vpp_msg.md)
     * [VPP Headers Cheatsheet](https://github.com/lolyu/aoi/blob/master/VPP/vpp_headers_cheatsheet.md)
     * [VPP data structures](https://github.com/lolyu/aoi/blob/master/VPP/vpp_data_structures.md)
+    * [VPP memory mgmt](https://github.com/lolyu/aoi/blob/master/VPP/vpp_mem_alloc.md)
   * sonic VPP
     * build and testbed setup:
       * [build VPP kvm image](https://github.com/sonic-net/sonic-platform-vpp/blob/master/README.md)

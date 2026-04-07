@@ -48,6 +48,48 @@ The connection begins with a `SOCKCLNT_CREATE` handshake, during which VPP assig
 
 The `M`/`S`/`W`/`PING` macros transparently select the right path by checking `scm->socket_enable` — so application code is identical regardless of which transport is active underneath.
 
+## Asynchronous Messaging
+
+VPP's binary API is async for performance reasons rooted in its architecture.
+
+### VPP's Threading Model
+
+VPP runs packet-processing on **worker threads** using a **run-to-completion** model — each worker thread processes a full vector of packets per dispatch cycle without preemption. Blocking a thread to wait for an API reply would stall packet forwarding, which is unacceptable.
+
+The binary API therefore runs on a **separate main thread** (the "vlib main thread"), decoupled from forwarding workers.
+
+### How the Async Protocol Works
+
+```
+Client                        VPP main thread
+  |                                |
+  |--- send msg (S(mp)) ---------> |  queued in shared memory ring
+  |                                |  (client doesn't wait)
+  |                                |  ... VPP processes at its own pace ...
+  |<-- reply msg ------------------|  VPP writes reply into shared mem
+  |                                |
+  |--- send CONTROL_PING --------> |
+  |<-- CONTROL_PING_REPLY ---------|  barrier: all prior replies done
+```
+
+Transport is a **shared-memory ring buffer** (not a socket), so sending is a lock-free enqueue — there's no kernel involvement and no blocking syscall on the send path.
+
+### Why Not Synchronous?
+
+1. **Pipelining**: You can send many requests back-to-back and receive all replies in a batch, avoiding per-request round-trip latency. This matters when programming many routes or ACL entries at once.
+2. **No blocking on the forwarding path**: If the API were synchronous, the main thread would spin-wait or sleep between request and reply, wasting a core and adding latency.
+3. **Shared memory transport**: The IPC mechanism is a lockless ring buffer. There's no natural "send and block" primitive — the client *enqueues* a message and the reading thread drains it when scheduled.
+
+### The Control Ping as a Barrier
+
+Since replies can arrive in any order (or get batched), `CONTROL_PING` exploits the **FIFO ordering** of the VPP message queue:
+
+- VPP processes API messages **strictly in order** on the main thread.
+- A ping sent *after* a request will only be replied to *after* the request's reply is sent.
+- `W(ret)` blocks only on the ping reply, giving you a cheap synchronization point without a per-message round-trip.
+
+This is why `vpp_sync_for_events()` can guarantee all pending async event notifications (link-up/down, BFD state) have been flushed before `vppProcessEvents()` drains the event queue with `vpp_ev_dequeue()`.
+
 ## Message Format
 
 Every VPP API message — request or reply — is a **packed C struct** auto-generated from `.api` definition files. All structs share a standard two-field header:

@@ -271,6 +271,22 @@ Sai::create(SAI_OBJECT_TYPE_SWITCH, &oid, 0, attrs)
 * NOTES:
   * object hash is the entire in-memory SAI object store for one switch
     * when syncd calls CRUD operations, the object hash will be updated
+  * **`init_switch` creates the switch state object based on the switch type**
+
+```cpp
+    switch (config->m_switchType)
+    {
+        ...
+
+        case SAI_VS_SWITCH_TYPE_VPP:
+            m_switchStateMap[switch_id] = std::make_shared<SwitchVpp>(switch_id, m_realObjectIdManager, config, warmBootState);
+            break;
+
+        default:
+            SWSS_LOG_WARN("unknown switch type: %d", config->m_switchType);
+            return nullptr;
+    }
+```
 
 ##### SwitchState class hierarchy
 
@@ -388,7 +404,7 @@ Sai::create(SAI_OBJECT_TYPE_PORT, &oid, switch_id, attrs)
        └─ VirtualSwitchSaiInterface::create(...)
             ├─ m_realObjectIdManager->allocateNewObjectId()  ← assign 64-bit OID
             └─ ss->create(SAI_OBJECT_TYPE_PORT, ...)
-                 └─ SwitchStateBase::createPort(oid, attrs)
+                 └─ SwitchVpp::createPort(oid, attrs)
                       ├─ UpdatePort(oid, attrs)              ← apply any attrs that touch VPP:
                       │    ├─ SAI_PORT_ATTR_ADMIN_STATE → SW_INTERFACE_SET_FLAGS (VPP API)
                       │    └─ SAI_PORT_ATTR_MTU         → HW_INTERFACE_SET_MTU  (VPP API)
@@ -450,6 +466,38 @@ SAI_PORT_ATTR_HW_LANE_LIST: [1,2,3,4]
 | `m_hwif_hostif_map` | `"GigabitEthernet0/0/0"` | `"Ethernet0"` |
 | `m_hostif_info_map` | `"Ethernet0"` | `HostInterfaceInfo` (tap fd, packet thread) |
 
+#### ASIC DB tables involved
+
+Both phases write to the `ASIC_STATE` table in ASIC DB (Redis DB 1), keyed as `ASIC_STATE:<SAI_OBJECT_TYPE>:<oid>`.
+
+| Phase | ASIC DB key | Example fields stored |
+|---|---|---|
+| Phase 1 — `createPort` | `ASIC_STATE:SAI_OBJECT_TYPE_PORT:oid:0x100…` | `SAI_PORT_ATTR_SPEED`, `SAI_PORT_ATTR_MTU`, `SAI_PORT_ATTR_ADMIN_STATE`, `SAI_PORT_ATTR_INGRESS_ACL`, QoS map OIDs, etc. |
+| Phase 2 — `createHostif` | `ASIC_STATE:SAI_OBJECT_TYPE_HOSTIF:oid:0xd00…` | `SAI_HOSTIF_ATTR_TYPE` (`NETDEV`), `SAI_HOSTIF_ATTR_NAME` (`"Ethernet0"`), `SAI_HOSTIF_ATTR_OBJ_ID` (port OID), `SAI_HOSTIF_ATTR_OPER_STATUS` |
+
+`SAI_HOSTIF_ATTR_OBJ_ID` in the hostif entry cross-references the port OID from Phase 1, linking the two entries. The write path is:
+
+```
+PortsOrch (orchagent)
+  ├─ sai_port_api->create_port()     → syncd writes ASIC_STATE:SAI_OBJECT_TYPE_PORT:oid:…
+  └─ sai_hostif_api->create_hostif() → syncd writes ASIC_STATE:SAI_OBJECT_TYPE_HOSTIF:oid:…
+```
+
+```
+127.0.0.1:6379[1]> hgetall "ASIC_STATE:SAI_OBJECT_TYPE_HOSTIF:oid:0xd0000000005af"
+ 1) "SAI_HOSTIF_ATTR_TYPE"
+ 2) "SAI_HOSTIF_TYPE_NETDEV"
+ 3) "SAI_HOSTIF_ATTR_OBJ_ID"
+ 4) "oid:0x100000000004f"
+ 5) "SAI_HOSTIF_ATTR_NAME"
+ 6) "Ethernet96"
+ 7) "SAI_HOSTIF_ATTR_QUEUE"
+ 8) "7"
+ 9) "SAI_HOSTIF_ATTR_OPER_STATUS"
+10) "true"
+11) "SAI_HOSTIF_ATTR_VLAN_TAG"
+12) "SAI_HOSTIF_VLAN_TAG_KEEP"
+```
 
 ## references
 * https://github.com/sonic-net/sonic-sairedis/blob/master/stub.pl
