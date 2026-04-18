@@ -33,7 +33,7 @@ LIBS    := -lvapiclient     \
 
 .PHONY: all clean
 
-all: vpp_list_interfaces vpp_client_connect
+all: vpp_list_interfaces vpp_client_connect vpp_ipip_tunnel
 
 vpp_list_interfaces: vpp_list_interfaces.c
 	$(CC) $(CFLAGS) -o $@ $< $(LIBS)
@@ -41,5 +41,8 @@ vpp_list_interfaces: vpp_list_interfaces.c
 vpp_client_connect: vpp_client_connect.c
 	$(CC) $(CFLAGS) -o $@ $< $(LIBS)
 
+vpp_ipip_tunnel: vpp_ipip_tunnel.c
+	$(CC) $(CFLAGS) -o $@ $< $(LIBS)
+
 clean:
-	rm -f vpp_list_interfaces vpp_client_connect
+	rm -f vpp_list_interfaces vpp_client_connect vpp_ipip_tunnel
