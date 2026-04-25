@@ -161,7 +161,7 @@ bobm11                            12     up   bobm11
       tx_q0_size_256_511_packets                         179
 ```
 
-* fdb table
+* `show l2fib all` — L2 FIB (MAC address table) for all bridge domains
 
 ```
 vpp# show l2fib all
@@ -194,6 +194,52 @@ vpp# show l2fib all
 L2FIB total/learned entries: 25/23  Last scan time: 0.0000e0sec  Learn limit: 16777216
 ```
 
+* `show lcp` — linux-cp interface pairs (VPP ↔ Linux tap mappings)
+```
+vpp# show lcp
+lcp default netns '<unset>'
+lcp lcp-auto-subint on
+lcp lcp-sync off
+lcp del-static-on-link-down off
+lcp del-dynamic-on-link-down off
+itf-pair: [0] bobm6 tap4096 Ethernet24 221 type tap
+itf-pair: [1] bobm7 tap4097 Ethernet28 222 type tap
+itf-pair: [2] bobm9 tap4098 Ethernet36 223 type tap
+itf-pair: [3] bobm8 tap4099 Ethernet32 224 type tap
+itf-pair: [4] bobm10 tap4100 Ethernet40 225 type tap
+itf-pair: [5] bobm11 tap4101 Ethernet44 226 type tap
+itf-pair: [6] bobm0 tap4102 Ethernet0 227 type tap
+itf-pair: [7] bobm1 tap4103 Ethernet4 228 type tap
+itf-pair: [8] bobm2 tap4104 Ethernet8 229 type tap
+itf-pair: [9] bobm3 tap4105 Ethernet12 230 type tap
+itf-pair: [10] bobm5 tap4106 Ethernet20 231 type tap
+itf-pair: [11] bobm4 tap4107 Ethernet16 232 type tap
+itf-pair: [12] bobm13 tap4108 Ethernet52 233 type tap
+itf-pair: [13] bobm12 tap4109 Ethernet48 234 type tap
+itf-pair: [14] bobm14 tap4110 Ethernet56 235 type tap
+itf-pair: [15] bobm15 tap4111 Ethernet60 236 type tap
+itf-pair: [16] bobm17 tap4112 Ethernet68 237 type tap
+itf-pair: [17] bobm16 tap4113 Ethernet64 238 type tap
+itf-pair: [18] bobm18 tap4114 Ethernet72 239 type tap
+itf-pair: [19] bobm19 tap4115 Ethernet76 240 type tap
+itf-pair: [20] bobm26 tap4116 Ethernet104 241 type tap
+itf-pair: [21] bobm27 tap4117 Ethernet108 242 type tap
+itf-pair: [22] bobm29 tap4118 Ethernet116 243 type tap
+itf-pair: [23] bobm28 tap4119 Ethernet112 244 type tap
+itf-pair: [24] bobm31 tap4120 Ethernet124 245 type tap
+itf-pair: [25] bobm30 tap4121 Ethernet120 246 type tap
+itf-pair: [26] bobm21 tap4122 Ethernet84 247 type tap
+itf-pair: [27] bobm20 tap4123 Ethernet80 248 type tap
+itf-pair: [28] bobm22 tap4124 Ethernet88 249 type tap
+itf-pair: [29] bobm23 tap4125 Ethernet92 250 type tap
+itf-pair: [30] bobm25 tap4126 Ethernet100 251 type tap
+itf-pair: [31] bobm24 tap4127 Ethernet96 252 type tap
+itf-pair: [32] BondEthernet101 tap4128 be101 257 type tap
+itf-pair: [33] BondEthernet102 tap4129 be102 258 type tap
+itf-pair: [34] BondEthernet103 tap4130 be103 259 type tap
+itf-pair: [35] BondEthernet104 tap4131 be104 260 type tap
+itf-pair: [36] loop0 tap4132 tap_Loopback0 261 type tap
+```
 
 
 ## L3
@@ -274,7 +320,7 @@ vpp# show bridge-domain 1000 detail
 span-l2-input l2-input-classify l2-input-feat-arc l2-policer-classify l2-input-acl vpath-input-l2 l2-ip-qos-record l2-input-vtr l2-learn l2-rw l2-fwd l2-flood arp-term-l2bd l2-flood l2-output
 
            Interface           If-idx ISN  SHG  BVI  TxFlood        VLAN-Tag-Rewrite
-            bvi1000              75    1    0    *      *           push-1 dot1q 1000
+            bvi1000              87    1    0    *      *           push-1 dot1q 1000
              bobm3               4     1    0    -      *           push-1 dot1q 1000
              bobm4               5     1    0    -      *           push-1 dot1q 1000
              bobm5               6     1    0    -      *           push-1 dot1q 1000
@@ -301,6 +347,8 @@ span-l2-input l2-input-classify l2-input-feat-arc l2-policer-classify l2-input-a
             bobm24               25    1    0    -      *           push-1 dot1q 1000
 
   IP4/IP6 to MAC table for ARP Termination
+               192.168.0.1               =>   22:59:d0:d5:19:a9
+              fc02:1000::1               =>   22:59:d0:d5:19:a9
 ```
 
 ## counter
