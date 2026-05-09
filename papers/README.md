@@ -9,3 +9,4 @@
 |Proactor - An Object Behavioral Pattern for Demultiplexing and Dispatching Handlers for Asynchronous Events|https://www.dre.vanderbilt.edu/~schmidt/PDF/proactor.pdf|
 |Time, Clocks, and the Ordering of Events in a Distributed System|https://lamport.azurewebsites.net/pubs/time-clocks.pdf|
 |Ulrich Drepper - what every programmer should know about memory |https://www.akkadia.org/drepper/cpumemory.pdf|
+|Azure Accelerated Networking: SmartNICs in the Public Cloud|https://www.microsoft.com/en-us/research/wp-content/uploads/2018/03/Azure_SmartNIC_NSDI_2018.pdf|
