@@ -50,7 +50,7 @@ This indicates the testbed can briefly expose an inconsistent view between the a
 * focus on host routes that should flip between direct neighbor resolution and tunnel forwarding
 
 ## references
-* [muxorch](sonic-swss/muxorch.md)
-* [SONiC neighbor system](neighbor.md)
+* [muxorch](./sonic-swss/muxorch.md)
+* [SONiC neighbor system](./neighbor.md)
 * [Dualtor testbed setup](https://github.com/sonic-net/sonic-mgmt/blob/master/docs/testbed/README.testbed.DualtorSetup.md)
 * [Dual ToR architecture](https://azure.github.io/SONiC/SONiC_Arch/DualToR/)
