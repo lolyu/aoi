@@ -105,3 +105,10 @@ Notes:
 - Test logs: `/tmp/vpp-unittest-<TestClass>-<rand>/`
 - Failed tests: `/tmp/vpp-failed-unittests/`
 - Python venv: `build-root/test/venv/`
+
+## contribute PR upstream
+
+
+
+## references
+* https://s3-docs.fd.io/vpp/26.06/contributing/gitreview.html
