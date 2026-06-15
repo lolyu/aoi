@@ -4,6 +4,17 @@
     * function argument: pass by value
     * function return: return by value
 
+## TLDR
+
+| You wrote | Init type | Key effect |
+|-----------|-----------|------------|
+| T t; | Default | 🗑️ scalars = garbage; class = default ctor |
+| T t = val | Copy | ❌ explicit ctors forbidden |
+| T t(val) | Direct | ✅ explicit ctors allowed |
+| T t{} (empty) | Value | zeroed first, then ctor |
+| T t{val} | Direct list | ✅ explicit, no narrowing conversions |
+| T t = {val} | Copy list | ❌ explicit forbidden, no narrowing |
+
 
 ## zero initialization
 * zero initialization: initialize the memory area of the variable to zero bits:
