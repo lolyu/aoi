@@ -21,7 +21,7 @@ These are the topology papers. Everything SONiC runs on top of one of these.
 Directly relevant to SONiC's BGP-based routing stack (FRR/Quagga) and bgpcfgd.
 | Paper | Venue | Why It Matters |
 | ----- | ----- | -------------- |
-| BGP in the Data Center (Lapukhov et al., RFC 7938) | IETF + industry | The reference for eBGP as DC underlay — the protocol SONiC uses |
+| BGP in the Data Center (Lapukhov et al., RFC 7938)[https://datatracker.ietf.org/doc/rfc7938/] | IETF + industry | The reference for eBGP as DC underlay — the protocol SONiC uses |
 | Beehive: Towards a Simple Abstraction for Scalable Software-Defined Networking | HotSDN | BGP policy abstraction at scale |
 | Routing Deflections — Use BGP for Traffic Engineering | SIGCOMM / NANOG | Understanding BGP TE as used in hyperscale DCs |
 | Mahout: Delivering Optimal DataCenter Transport with Software-Defined Networking | SIGCOMM 2011 | Early SDN + DC transport integration |
