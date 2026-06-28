@@ -10,6 +10,8 @@
 | 2:1   | 2 hosts compete for 1 host-worth of uplink |
 | 4:1   | Common in older enterprise DCs             |
 
+* dualtor oversubscription is 6:1 ~ 3:1
+
 ## FAT tree
 
 * K-ary fat tree:
