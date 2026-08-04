@@ -28,3 +28,15 @@
 * NVE (network virtualization edge): tunnel endpoint
     * ingress NVE - tunnel start
     * egress NVE - tunnel end
+
+### VXLAN
+
+<img width="608" height="330" alt="image" src="https://github.com/user-attachments/assets/a1da0efc-e164-4332-ab4a-21c6dd15d476" />
+
+* the control plane of VXLAN must provide the following:
+    * map inner payload to egress NVE address
+    * allow NVE to list the virtual networks it is registered to allow point-to-multipoint communication such as broadcast
+
+ * VXLAN needs a protocol to provide the *mapping of (VNI, MAC) tuple to egress NVE address*.
+ * **NOTE**: the VXLAN UDP source port is calculated based on the hash of 5-tuple of the underlying payload header
+    * all packets belonging to the same L4 flow has the same VXLAN header
