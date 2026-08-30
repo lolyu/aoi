@@ -108,7 +108,21 @@ Notes:
 
 ## contribute PR upstream
 
+```
+git review -d <change number>
+git status
+git diff
+```
 
+To modify an existing patch, make sure you modified the correct files, and apply the patch with:
+```
+git review -d <change number>
+git status
+git diff
+git add <filename>
+git commit --amend
+git review
+```
 
 ## references
 * https://s3-docs.fd.io/vpp/26.06/contributing/gitreview.html
