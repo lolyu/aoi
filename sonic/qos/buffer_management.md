@@ -96,31 +96,87 @@ numbers equal keeps the whole chain intuitive, but nothing forces it.
 
 ### 3.1 anatomy of a lossless PG
 
-A lossless PG's allowance is three stacked regions:
+A lossless PG's allowance is three stacked regions, each driven by a different
+`BUFFER_PROFILE` field:
 
 ```
   +---------------------------+ <- hard limit
-  |         headroom          |  xoff bytes: absorbs traffic already in flight
-  |                           |             AFTER the PAUSE has been sent
+  |         headroom          |  <- xoff        absorbs traffic already in flight
+  |                           |                 AFTER the PAUSE has been sent
   +---------------------------+ <- XOFF threshold: PAUSE asserted here
   |                           |
-  |    shared pool region     |  governed by dynamic_th (alpha x free_pool)
-  |                           |  or static_th; contended with every other PG
-  |                           |  on the same pool
+  |    shared pool region     |  <- dynamic_th  (alpha x free_pool)
+  |                           |     or static_th (fixed ceiling)
+  |                           |     contended with every other PG on the pool
   +---------------------------+ <- top of the guaranteed region
-  |   reserved / guaranteed   |  size bytes: always available, never contended
+  |   reserved / guaranteed   |  <- size        always available, never contended
   +---------------------------+ 0
+
+     resume happens at:  total usage <= max(xon, limit - xon_offset)
 ```
 
-* `size` -> `SAI_BUFFER_PROFILE_ATTR_RESERVED_BUFFER_SIZE`. Private to this PG. `size = 0`
-  means the PG draws everything from the shared pool.
-* the shared region -> `SAI_BUFFER_PROFILE_ATTR_SHARED_DYNAMIC_TH` or `..._SHARED_STATIC_TH`.
-* `xoff` -> `SAI_BUFFER_PROFILE_ATTR_XOFF_TH`. **This is the headroom size, not the trigger
-  level.** SAI defines it as "generate XOFF when the available buffer in the PG is less than
-  this threshold", i.e. `xoff` bytes are still free at the instant the PAUSE goes out.
+#### the profile fields
 
-A **lossy** PG (typically PG 0) simply has no `xoff` attribute at all. That is exactly what
-makes it lossy: no headroom, no PFC, drop on overflow.
+| `BUFFER_PROFILE` field | SAI attribute | region | meaning |
+| --- | --- | --- | --- |
+| `pool` | `SAI_BUFFER_PROFILE_ATTR_POOL_ID` | — | which `BUFFER_POOL` this profile draws from |
+| `size` | `SAI_BUFFER_PROFILE_ATTR_RESERVED_BUFFER_SIZE` | reserved | private, guaranteed bytes for this PG. Never contended. `size = 0` means the PG draws **everything** from the shared pool |
+| `dynamic_th` | `SAI_BUFFER_PROFILE_ATTR_SHARED_DYNAMIC_TH` | shared | alpha **exponent** (`alpha = 2^dynamic_th`). Ceiling is recomputed continuously as `alpha x free_pool`. Requires pool `mode = dynamic` |
+| `static_th` | `SAI_BUFFER_PROFILE_ATTR_SHARED_STATIC_TH` | shared | fixed byte ceiling instead of `dynamic_th`. Requires pool `mode = static` |
+| `xoff` | `SAI_BUFFER_PROFILE_ATTR_XOFF_TH` | headroom | **headroom size in bytes — not the trigger level.** SAI: "generate XOFF when the available buffer in the PG is less than this threshold", i.e. `xoff` bytes are still free at the instant the PAUSE goes out. *Lossless only* |
+| `xon` | `SAI_BUFFER_PROFILE_ATTR_XON_TH` | resume | absolute occupancy at/below which XON is generated. *Lossless only* |
+| `xon_offset` | `SAI_BUFFER_PROFILE_ATTR_XON_OFFSET_TH` | resume | hysteresis below the limit, so the port does not oscillate. *Lossless only* |
+
+`dynamic_th` and `static_th` are mutually exclusive — a profile carries whichever matches its
+pool's `mode`.
+
+#### what makes a PG lossless
+
+Nothing declares it. A PG is lossless purely because its profile carries
+`SAI_BUFFER_PROFILE_ATTR_XOFF_TH` **and** its priority is set in the port's `pfc_enable`
+bitmap. A lossy PG (typically PG 0) simply has no `xoff`/`xon`/`xon_offset` attributes at
+all — no headroom, no PFC, drop on overflow. Both conditions are needed: a profile with
+`xoff` on a priority missing from `pfc_enable` still drops.
+
+#### how the objects are wired together
+
+| CONFIG\_DB | SAI object | SAI attribute |
+| --- | --- | --- |
+| `BUFFER_POOL\|<name>` | `SAI_OBJECT_TYPE_BUFFER_POOL` | `..._ATTR_SIZE`, `..._ATTR_TYPE`, `..._ATTR_THRESHOLD_MODE`, `..._ATTR_XOFF_SIZE` |
+| `BUFFER_PROFILE\|<name>` | `SAI_OBJECT_TYPE_BUFFER_PROFILE` | the table above |
+| `BUFFER_PG\|<port>\|<pg-range>` -> `profile` | `SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP` | `SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE` |
+| `BUFFER_QUEUE\|<port>\|<q-range>` -> `profile` | `SAI_OBJECT_TYPE_QUEUE` | `SAI_QUEUE_ATTR_BUFFER_PROFILE_ID` |
+
+Note the key format: `BUFFER_PG` is per **`(port, pg index range)`** — e.g.
+`BUFFER_PG|Ethernet0|3-4`. It is not a global "profile per ingress priority"; different
+ports on the same switch routinely carry different profiles.
+
+#### a real lossless profile, field by field
+
+```
+BUFFER_POOL|ingress_lossless_pool     mode dynamic  size 33169344  xoff 7827456
+BUFFER_PROFILE|pg_lossless_100000_300m_profile
+    pool        ingress_lossless_pool
+    size        1248        1248 B private to each PG using this profile
+    dynamic_th  0           alpha = 2^0 = 1  ->  ceiling = 1 x free_pool
+                                             (= half the pool at the single-consumer
+                                                fixed point, see 3.3)
+    xoff        101088      101088 B of headroom, drawn from the pool's 7827456 B
+                            shared headroom pool
+    xon         1248
+    xon_offset  2496        resume at  usage <= max(1248, limit - 2496)
+BUFFER_PG|<port>|3-4  ->  pg_lossless_100000_300m_profile
+```
+
+Contrast with the lossy profile on the same pool — no `xoff`, no `xon`, no headroom:
+
+```
+BUFFER_PROFILE|ingress_lossy_profile
+    pool        ingress_lossless_pool
+    size        0
+    static_th   44302336
+BUFFER_PG|<port>|0  ->  ingress_lossy_profile
+```
 
 ### 3.2 what actually happens on arrival
 
@@ -435,9 +491,7 @@ QUEUE|<port>|<idx>                   scheduler    -> SAI_QUEUE_ATTR_SCHEDULER_PR
                                      wred_profile -> SAI_QUEUE_ATTR_WRED_PROFILE_ID
 ```
 
-Note the key format: `BUFFER_PG` is per **`(port, pg index range)`**, e.g.
-`BUFFER_PG|Ethernet0|3-4`. It is not a global "profile per ingress priority" — different
-ports on the same switch routinely carry different profiles.
+Key formats and the object wiring are explained in [3.1](#31-anatomy-of-a-lossless-pg).
 
 `DEVICE_METADATA|localhost|buffer_model` selects `traditional` (buffer sizes baked into the
 per-HWSKU `buffers.json.j2` templates) or `dynamic` (`buffermgrd` recomputes headroom at
