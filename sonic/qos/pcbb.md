@@ -141,6 +141,51 @@ cable length than downlinks. See section 7 for what the fields actually mean.
 
 ### 1.4 The deadlock argument in detail
 
+#### 1.4.0 What a PFC deadlock *is*
+
+> **PFC deadlock** — a permanent, self-sustaining state of a lossless network in which a set
+> of ingress buffers forms a **cycle** in the buffer dependency graph: each can only drain
+> after the next has drained, so none can ever go first. Forwarding on that priority stops
+> completely and stays stopped, with **zero packets dropped**.
+
+Formally: build the graph whose vertices are ingress priority groups
+`B(switch, ingress port, priority)`, with an edge `B1 -> B2` meaning *"B1 can only drain if
+B2 drains"*. A PFC deadlock is a **directed cycle in that graph, all of whose edges are
+simultaneously tight** (every node on it actually asserting PAUSE).
+
+It is the classical deadlock, and all four Coffman conditions hold:
+
+| Coffman condition | how PFC satisfies it | permanent? |
+| --- | --- | --- |
+| 1. mutual exclusion | buffer cells are exclusively occupied | **always** |
+| 2. hold and wait | a PG holds admitted bytes *while waiting* for its downstream | **only under congestion** |
+| 3. no preemption | PFC's lossless guarantee **is** "you may not drop" | **always** |
+| 4. circular wait | the bounce ring | **structural in dualtor** |
+
+Three of the four are permanent properties of a lossless dualtor. Only **(2)** is
+load-dependent — which is why the ring can sit latent and harmless for months.
+
+Distinguishing it from congestion, which uses the identical machinery:
+
+| | congestion / HOL blocking | **PFC deadlock** |
+| --- | --- | --- |
+| graph shape | DAG — every edge points at a sink | **cycle** |
+| throughput on that priority | degraded | **zero** |
+| drops | maybe | **none** (that is the problem) |
+| clears when the sink drains | yes | **no** |
+| clears when the source stops | yes | **no** |
+| self-heals | yes | **never** — needs PFCWD, a port flap, or a reload |
+
+Two properties are worth stating explicitly because they are what make it dangerous:
+
+* **Self-sustaining.** The trapped packets are themselves what keep the buffers above
+  threshold. The state survives the offered load going to zero.
+* **Silent.** Link up, no errors, no drops, near-zero packet counters, PFC TX climbing. It
+  reads as *absence of traffic*, not as a failure.
+
+Everything below works out how such a cycle forms in a dualtor, why nothing outside it can
+break it, and how the priority hop removes it.
+
 #### 1.4.1 Why a PFC deadlock is permanent
 
 Model the lossless fabric as a **buffer dependency graph**. Vertices are ingress buffers
@@ -255,21 +300,21 @@ after the freeze:   no arrivals     ->  occ is monotone non-increasing
                     H drains        ->  occ falls by |H|
                     R cannot move   ->  occ never falls below |R|
 
-                    occ(PG)  ->  |R|    and stays there
+                    occ(PG)  ->  |R|    within this pause cycle
 ```
 
-`|R|` is a **floor**, not a decay:
+`|R|` is a **floor**, not a decay — the healthy drain is a one-shot subtraction, because the
+moment the PG crossed XOFF it paused its own upstream and admitted nothing further:
 
 ```
- occupancy of a cycle node
+ occupancy of a cycle node, within ONE pause cycle
    ^
    |        _--_
 XOFF ------/----\------------------------------------  PAUSE asserted here
    |      /      \   <- healthy portion H drains (once)
-   |     /        \________________________________    <- residue |R| = loop traffic
-   |    /                                               frozen: cannot grow
-   |   /                                                (no admissions), cannot
-XON ---/---------------------------------------------   shrink (egress paused)
+   |     /        \________________________________    <- floor = |R|, loop traffic
+   |    /                                               cannot grow (no admissions)
+   |   /                                                cannot shrink (egress paused)
    |  /
    +-+---------------------------------------------->  time
 ```
@@ -277,49 +322,182 @@ XON ---/---------------------------------------------   shrink (egress paused)
 A perfectly healthy server therefore makes the end state *purer*, not better — the PG ends
 up holding nothing but un-drainable loop traffic.
 
-##### An illustrative timeline
+Whether that floor is the end of the story depends on where it sits relative to the release
+point. On the early cycles it is **below** it, so the pause does lift and the system keeps
+cycling; the sections below work out what makes the floor climb, and when that stops being
+true.
 
-Numbers invented, shape accurate; assume ECMP gives a roughly 50/50 healthy/loop split.
+##### Terminology used below
 
-```
-t0   occ = 0
-t1   traffic ramps; occ climbs, ~50% H, ~50% R
-t2   occ hits XOFF (say 4 MB)  ->  PAUSE asserted on port P for that priority
-t3   + reaction delay: in-flight bytes land in headroom (say +0.4 MB)
-     peak occ = 4.4 MB.  ADMISSIONS NOW ZERO.  |H| ~ 2.2 MB, |R| ~ 2.2 MB
-t4   H drains at line rate  ->  ~180 us at 100G
-t5   occ = 2.2 MB.  FOREVER.   release point ~ 0  ->  PAUSE refreshed indefinitely
-```
+| term | standard name | meaning |
+| --- | --- | --- |
+| **pause lifts** | XON / pause release | `occ` fell back under the release point, so a PFC frame with `time = 0` goes out and the peer resumes |
+| **residue `R`** | — | the un-drainable, loop-destined bytes held in a cycle node |
+| **ratchet** | monotone accumulation; the locked state is an *absorbing state* | `R` can only stay flat or grow while the ring is closed, never shrink |
 
-The healthy server bought 180 microseconds of draining and nothing else.
+##### The bounce fraction `f`, derived
 
-##### Why ordinary congestion does not do this
+`f` is the share of everything admitted into a cycle node that is loop-destined and
+therefore sticks. It is **not** the ECMP split, and it is **not** 1/2 — the deliver side is
+fed twice (directly, and again as the peer's bounced traffic returning), the bounce side
+only once. At `B(UT, from T1)`, with UT standby for SA and active for SB:
 
-Identical machinery, one different fact: in ordinary congestion `R`'s egress eventually
-unblocks, because whatever is congesting it is downstream and independent. So `|R| -> 0`,
-`occ -> 0`, XON fires, the pause lifts, traffic resumes. In the deadlock, `R`'s egress is
-blocked by a node that — transitively, around the cycle — is waiting on this very node, so
-`|R|` has no path to zero. Same machinery, opposite outcome; the only difference is whether
-the dependency chain closes on itself.
-
-##### The stability condition, stated honestly
-
-The cycle is stable **iff** each node's residue keeps its PG above its release point. That
-condition is met overwhelmingly in practice: XOFF fires at `2^alpha x free_shared_pool`,
-which for a megabyte-scale ingress lossless pool is a megabyte-scale trigger, while the XON
-hysteresis is small (`xon = 0` in the profiles here); and ECMP means roughly half of what a
-ToR admits is bounce-destined. Residue vastly exceeds release point.
-
-The one theoretical escape is that **dynamic** thresholds move: if unrelated traffic freed
-the shared pool, every threshold would rise and a frozen occupancy might drop below its new
-threshold. It does not fire, because of positive feedback — the deadlocked traffic is itself
-the dominant consumer of the pool it would need to free:
+| stream | volume | fate |
+| --- | ---: | --- |
+| fresh, dst SA | `TA/2` | **bounce** — sticks |
+| fresh, dst SB | `TB/2` | deliver |
+| tunnelled, dst SB (LT bounced it) | `TB/2` | deliver |
 
 ```
-large frozen residues  ->  little free pool  ->  low thresholds
-        ^                                              |
-        +------------ still over threshold  <----------+
+f_UT = (TA/2) / (TA/2 + TB) = r / (r + 2),      r = TA/TB
+f_LT = 1 / (1 + 2r)
+
+symmetric (r = 1):   f_UT = f_LT = 1/3
 ```
+
+Asymmetric load does not remove the problem, it relocates it — as one fraction goes to 0 the
+other goes to 1, and the **slower** node gates the lock because residues only grow mutually:
+
+| `r = TA/TB` | `f_UT` | `f_LT` | lock cycles (gated by the slower) |
+| ---: | ---: | ---: | ---: |
+| 1 | 0.33 | 0.33 | **22** |
+| 10 | 0.83 | 0.048 | **179** |
+| 100 | 0.98 | 0.005 | **1756** |
+
+Balanced bidirectional bounce traffic is the worst case for onset.
+
+##### The ratchet
+
+Each release admits `(T - R)` bytes, of which `f` sticks:
+
+```
+R_{n+1}   = R_n + f (T - R_n)
+gap_{n+1} = (1 - f) gap_n            gap = T - R,  decays geometrically
+```
+
+```
+occ
+  T  ----/\------/\------/\------/\----   pause asserted at each peak
+        /  \    /  \    /  \    /  \
+       /    \__/    \__/    \__/    \__
+      /     R1      R2      R3      R4    <- troughs = residue after the
+     /                                       healthy population drains
+    0                                        R1 < R2 < R3 < R4  ->  T
+    +----------------------------------> time
+```
+
+The peaks stay at the trigger; the **troughs climb**. When a trough rises above the release
+point the pause never lifts again. With `f = 1/3` and `T = 16.5 MB` that is ~22 cycles.
+
+Note what this says: **the pause genuinely does lift on the early cycles.** The healthy sink
+draining is what *causes* each lift — and every lift admits more loop traffic. A fast server
+is the engine of the ratchet, not a defence against it. (A slow one would hold `occ` high,
+keep the node paused, admit nothing, and freeze `R` where it is.)
+
+##### The lock-in fixed point
+
+The release point is not fixed either. With `dynamic_th`, `T = 2^alpha x free_pool`, and
+`free_pool` is suppressed by the residues themselves. With `n` cycle nodes each holding `R`:
+
+```
+locked  iff  R >= 2^alpha (P - nR)
+        iff  R >= 2^alpha P / (1 + n 2^alpha)
+
+n = 4, alpha = -2:   R >= P/8       i.e.  4R >= P/2   (half the pool trapped)
+n = 4, alpha =  0:   R >= P/5       i.e.  4R >= 4P/5
+```
+
+So two monotone processes move toward each other — `R` rises, `T` falls — and the crossing
+is irreversible, because `R` cannot drain (needs the ring), cannot be dropped (PFC), and
+cannot shrink while paused (no admissions).
+
+##### But a release also cascades — so it is a race
+
+The ratchet is only half the story. A release does not just admit more traffic; it also
+**unblocks the next node**, and that can propagate all the way round:
+
+```
+UT releases
+  -> B(T1,fromLT) drains (its loop traffic reaches UT and is delivered)
+  -> T1 stops pausing LT
+  -> B(LT,fromT1) drains (LT's residue can finally move)
+  -> LT stops pausing T1
+  -> B(T1,fromUT) drains
+  -> T1 stops pausing UT
+  -> UT's own residue can move          <- the ring has opened
+```
+
+So the outcome is a race between the **release cascade** and the **refill**:
+
+| | outcome |
+| --- | --- |
+| cascade propagates faster than refill | ring opens, residues drain, **recovery** |
+| refill outpaces the cascade | each node re-crosses XOFF first, residues ratchet, **permanent lock** |
+
+And what decides it is simply whether the offered load is feasible:
+
+```
+T1->UT carries  TA/2 + TB      UT->SB limited by the mux port
+T1->LT carries  TB/2 + TA      LT->SA limited by the mux port
+UT->T1 carries  TA/2           LT->T1 carries TB/2
+```
+
+* **all within capacity** — a feasible steady-state flow exists, the cascade wins, no
+  deadlock however long you run it
+* **some link or mux port sustainedly over capacity** — backlog is unbounded, every node
+  re-crosses XOFF immediately, refill wins, the residues converge to the fixed point above
+
+This is the honest version of "draining the servers does not help". It does help — by
+deciding who wins the race. What it cannot do is *undo* a ring that has already locked.
+
+##### The gridlock junction
+
+The locked state is best understood as a box junction:
+
+```
+                          EXIT NORTH
+                        (EMPTY, ready)
+                               ^
+                               |
+        +----------------------|----------------------+
+        |                                             |
+        |        [ CAR A ] ==========> [ CAR B ]      |
+        |            ^                      ||        |
+ EXIT   |            ||      JUNCTION       ||        |   EXIT
+ WEST <=|===         ||                     vv        |==> EAST
+(EMPTY) |            ||                               | (EMPTY)
+        |        [ CAR D ] <========== [ CAR C ]      |
+        |                                             |
+        +----------------------|----------------------+
+                               |
+                               v
+                          EXIT SOUTH
+                        (EMPTY, ready)
+
+   A wants B's square. B wants C's. C wants D's. D wants A's.
+   All four exit roads are completely clear. Nobody moves. Ever.
+```
+
+| junction | network |
+| --- | --- |
+| car | the bytes trapped in one ingress PG |
+| the square it occupies | buffer space |
+| "I need the next square first" | "my egress is paused until the next PG drains" |
+| cars cannot be towed | PFC forbids dropping — no preemption |
+| exit roads | the servers |
+| **exit roads are empty** | **both servers draining perfectly** |
+
+Car A sits beside a completely open exit and still cannot move, because the bytes that
+could use that exit **already left** — the exit is empty *precisely because* everything that
+could leave, did. What remains is addressed through the junction.
+
+> In the locked state **no packet is waiting on a server. Every packet is waiting on another
+> packet.** Congestion means the exit road is jammed; deadlock means the roads are clear and
+> the cars are blocking each other in the box.
+
+Which is also why a single T0 cannot gridlock: `T2 -> T1 -> T0 -> server` is a straight
+road, and a queue always drains from the front. **A ring has no front.**
+
 
 ##### Summary, and how to tell the two apart on a live box
 
