@@ -1,7 +1,7 @@
 # buffer management
 
 > All config/SAI values quoted below were read from a live SONiC switch
-> (Broadcom TD3, `buffer_model = traditional`) unless noted otherwise.
+> (Broadcom ASIC, `buffer_model = traditional`) unless noted otherwise.
 
 ## 1. what the hardware actually does
 
