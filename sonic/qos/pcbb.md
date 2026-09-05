@@ -1078,9 +1078,58 @@ runs dry and packets are dropped — check `show priority-group drop` and
 
 ## 8. Packet walk A — standby ToR, encap / bounce-back
 
-**Identical on all three platforms.** The remap into the extra lossless queue is done
-entirely by the tunnel object's encap maps, which take precedence over the egress port's
-`tc_to_queue_map` for tunnel-encapsulated packets.
+### The packet all three walks follow
+
+Walks A, B and C follow the same packet. This is what leaves the **standby** ToR and
+arrives at the **active** ToR's uplink:
+
+```
+Ethernet
+    dst   <active ToR router MAC>
+    src   <T1 MAC>
+    type  0x0800
+
+IP  (OUTER)  -- added by the standby ToR
+    src   <standby ToR Loopback0>
+    dst   <active ToR Loopback0>
+    DSCP  2                      <- rewritten by encap_tc_to_dscp
+    ECN   copied from inner
+    ttl   pipe
+    proto 4  (IPIP)
+
+IP  (INNER)  -- the original packet, untouched
+    src   1.1.1.1
+    dst   192.168.0.2            <- the server
+    DSCP  3                      <- PRESERVED
+    proto 6  (TCP)
+
+TCP payload
+```
+
+The critical enabler is `dscp_mode = pipe` on `MuxTunnel0`: the inner DSCP is **not**
+overwritten by the outer. Both DSCPs travel independently — outer 2 for the fabric, inner 3
+for the final delivery. **Every vendor difference below comes down to which of the two a
+given map keys on.**
+
+### The encap walk — identical on all three
+
+Incoming from T1: `dst = 192.168.0.2, DSCP = 3`, mux for that server is **standby**.
+
+| step | Cisco | Broadcom / Mellanox |
+| --- | --- | --- |
+| port `dscp_to_tc_map` | `AZURE`: 3 -> **TC3** | `AZURE_UPLINK`: 3 -> **TC3** |
+| port `tc_to_pg_map` | `AZURE`: TC3 -> **PG3** | same |
+| route lookup | mux standby -> `MuxTunnel0` nexthop | same |
+| outer DSCP — `encap_tc_to_dscp_map` | `AZURE_TUNNEL`: TC3 -> **2** | same |
+| egress queue — `encap_tc_to_queue_map` | `AZURE_TUNNEL`: TC3 -> **queue 2** | same |
+| inner DSCP | untouched (**3**) | same |
+
+Byte-for-byte identical. The `AZURE` vs `AZURE_UPLINK` map difference is invisible here
+because the two agree on DSCP 3 and 4 — the tunnel object does all the work.
+
+The remap into the extra lossless queue is done entirely by the tunnel object's encap maps,
+which take precedence over the egress port's `tc_to_queue_map` for tunnel-encapsulated
+packets.
 
 ```
 T1 --DSCP 3--> [standby ToR uplink ingress]
@@ -1111,23 +1160,29 @@ Covered by `test_encap_dscp_rewrite` and `test_bounced_back_traffic_in_expected_
 This is where the platforms diverge. Both chains land on the **same** result
 (ingress PG2, server-facing queue 3) but get there differently.
 
-```
-Broadcom / Mellanox
-  uplink RX outer DSCP 2
-      -> port dscp_to_tc AZURE_UPLINK -> TC2 -> port tc_to_pg AZURE -> ingress PG2
-  tunnel termination
-      -> decap_dscp_to_tc AZURE_TUNNEL on INNER DSCP 3 -> TC3      (pass-through)
-      -> decap_tc_to_pg   AZURE_TUNNEL       TC3       -> PG2      (agrees with above)
-      -> downlink tc_to_queue AZURE          TC3       -> queue 3
+| step | Broadcom / Mellanox | Cisco |
+| --- | --- | --- |
+| **1.** port classifies the **OUTER** DSCP 2 | `AZURE_UPLINK`: 2 -> **TC2** | `AZURE`: 2 -> **TC1** |
+| **2.** port `tc_to_pg_map` `AZURE` | TC2 -> **PG2**, lossless — *the port map alone already lands it correctly* | TC1 -> **PG0**, lossy — *the port map contributes nothing* |
+| **3.** tunnel term: outer dst matches a decap entry | decap | decap |
+| **4.** `decap_dscp_to_tc_map` on the **INNER** DSCP 3 | `AZURE_TUNNEL` is **pass-through**: 3 -> **TC3** | `AZURE_TUNNEL` **shifts**: 3 -> **TC2**  <-- |
+| **5.** TC -> PG | `decap_tc_to_pg_map` `AZURE_TUNNEL`: TC3 -> **PG2** (agrees with step 2) | port `tc_to_pg_map` `AZURE`: TC2 -> **PG2**; `decap_tc_to_pg_map` is **inert** |
+| **6.** downlink `tc_to_queue_map` `AZURE` | TC3 -> **queue 3** | TC2 -> **queue 3** |
+| **result** | ingress **PG2**, egress **queue 3** | ingress **PG2**, egress **queue 3** |
 
-Cisco 8101
-  uplink RX outer DSCP 2
-      -> port dscp_to_tc AZURE -> TC1 -> PG0            (port map contributes nothing)
-  tunnel termination
-      -> decap_dscp_to_tc AZURE_TUNNEL on INNER DSCP 3 -> TC2      <-- SHIFT HAPPENS HERE
-      -> port tc_to_pg    AZURE              TC2       -> ingress PG2
-      -> downlink tc_to_queue AZURE          TC2       -> queue 3
-```
+Same destination, three differences along the way:
+
+1. **Which DSCP does the work.** Broadcom derives the lossless PG from the **outer** DSCP
+   via the port map. Cisco derives it from the **inner** DSCP via the tunnel map.
+2. **Which TC the packet carries internally.** Broadcom **TC3**, Cisco **TC2** — same
+   packet, different internal class.
+3. **Which map is redundant.** Broadcom has two agreeing paths to PG2; Cisco has exactly
+   one, and its `decap_tc_to_pg_map` is dead configuration.
+
+> The end state (PG2 / queue 3) is what `test_tunnel_decap_dscp_to_pg_mapping` verifies via
+> watermarks. The exact pipeline ordering of PG assignment versus tunnel termination is
+> vendor-internal — the table shows which *maps* determine the outcome, not the literal gate
+> order.
 
 This is exactly what the fixture encodes in
 [tunnel_qos_remap_base.py](tunnel_qos_remap_base.py):
@@ -1158,13 +1213,26 @@ inert — matching the on-box template comment:
 
 ## 10. Packet walk C — the observable behavioural difference
 
-A **non-tunnel** packet carrying DSCP 2 that ingresses an uplink port:
+Take the **same packet** as walks A and B and change only the outer addresses to something
+that matches no decap entry — which is literally what `test_separated_qos_map_on_tor`
+builds:
+
+```
+IP (OUTER)  src 20.2.0.21   dst 20.2.0.22   DSCP 2      <- no decap term matches
+IP (INNER)  dst 192.168.0.2                 DSCP 3
+```
+
+It is now just an IP packet routed back out an uplink. **No tunnel map is consulted at
+all**, so only the port maps decide:
 
 | platform | classification | result |
 | --- | --- | --- |
 | Broadcom | `AZURE_UPLINK` -> TC2 -> `AZURE_UPLINK` tc_to_queue | queue 2 (extra lossless) |
 | Mellanox | `AZURE_UPLINK` -> TC2 -> `AZURE` tc_to_queue (identity) | queue 2 (extra lossless) |
 | Cisco | `AZURE` -> TC1 -> `AZURE_UPLINK` tc_to_queue | queue 1 (lossy) |
+
+This is the **only** externally observable difference between the platforms, and it is the
+security-relevant one.
 
 Broadcom/Mellanox **trust DSCP 2/6 on uplinks** to mean "bounced-back class" regardless
 of whether the packet is actually tunnelled. Cisco makes the extra lossless classes
@@ -1196,6 +1264,19 @@ distinct `dscp_to_tc_map` names in `PORT_QOS_MAP`:
 
 (The downlink half would actually pass on Cisco too; only the uplink half is
 inapplicable.)
+
+### Which map does the work, summarised
+
+| job | Broadcom | Cisco |
+| --- | --- | --- |
+| outer DSCP -> lossless ingress PG | `DSCP_TO_TC\|AZURE_UPLINK` (port) | *nothing* |
+| inner DSCP -> correct TC on decap | `DSCP_TO_TC\|AZURE_TUNNEL` (pass-through) | `DSCP_TO_TC\|AZURE_TUNNEL` (**does the shift**) |
+| TC -> lossless PG on decap | `TC_TO_PG\|AZURE_TUNNEL` | `TC_TO_PG\|AZURE` (port) |
+| TC -> outer DSCP on encap | `TC_TO_DSCP\|AZURE_TUNNEL` | same |
+| TC -> lossless queue on encap | `TC_TO_QUEUE\|AZURE_TUNNEL` | same |
+
+**Encap: same mechanism. Decap: Broadcom trusts the outer DSCP via the port map; Cisco
+re-derives from the inner DSCP via the tunnel map.**
 
 ## 11. Summary of Cisco-specific branches in `test_tunnel_qos_remap.py`
 
