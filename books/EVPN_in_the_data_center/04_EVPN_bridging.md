@@ -91,4 +91,36 @@ A floods →  A sends ONE packet to group 239.1.1.1
               spine replicates along the tree → B, C, D  (one copy per link)
 ```
 
+## MAC moves
+* situation:
+    * A moves from behind L1 to behind L2
+    * A sends out GARP after move
+    * L2 learns MAC_A is local, update its FDB table, announce `(VNI_RED, MAC_A)`
+    * L1 learns BGP UPDATE **`(VNI_RED, MAC_A)` is from L2, but its FDB table says MAC_A is local**
+        * BGP always prefer local
+
+* The mechanism: the MAC Mobility extended community (a sequence number)
+    * EVPN attaches a MAC Mobility extended community to the Type-2 route, carrying a sequence number. This is the tiebreaker:
+        * When a MAC is first advertised, seq = 0 (or the community is absent).
+        * When a VTEP learns a MAC that it sees is already advertised by another VTEP (i.e. a move), it advertises its Type-2 with seq = (highest seq seen) + 1.
+        * Highest sequence number wins. Remote VTEPs installing the route pick the Type-2 with the greatest MAC-mobility seq as the current location.
+
+* so the walk for the mac move situation:
+    * L1 announces `(VNI_RED, MAC_A)` with mac mobility (seq 0)
+    * A moves from bebind L1 to behind L2
+    * L2 announces `(VNI_RED, MAC_A)` with mac mobility (seq 1)
+    * L1 learns `(VNI_RED, MAC_A)` is from L2 with mac mobility (seq 1), withdraw its local one (seq 0)
+
+## ARP suppression
+* ARP suppression: answer locally, don't flood
+* ARP suppression (and ND suppression for IPv6) means:
+    * The ingress VTEP intercepts the host's ARP request, looks up the target IP in its local EVPN-learned ARP/ND table (populated from Type-2 routes), and if it has the binding, replies directly to the host itself (proxy-ARP) — without flooding the request into the fabric.
+
+* The flow:
+    * Host X (behind VTEP A) sends ARP request for 10.1.1.20. (1/3)
+    * VTEP A intercepts it (doesn't flood immediately). It checks its local table, which was populated by B's Type-2 route → 10.1.1.20 = BB:BB:....
+    * Match → VTEP A generates the ARP reply itself ("10.1.1.20 is at BB:BB:...") and sends it straight back to X. The ARP request never leaves VTEP A.
+    * Miss (A doesn't know the IP yet — e.g. a silent host that hasn't been advertised) → A falls back to flooding the ARP normally, so correctness is preserved.
+
+
 # references
