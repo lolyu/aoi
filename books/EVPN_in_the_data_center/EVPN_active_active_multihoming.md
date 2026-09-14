@@ -134,6 +134,41 @@ pointing at this ESI uses the **Type-1 A-D per-ES** routes to know it can send t
 even if only one leaf actually learned the MAC. Also gives **fast mass-withdraw**:
 if leaf1's link fails, one Type-1 withdraw reconverges all MACs on that ESI at once.
 
+#### Type-1 walkthrough
+
+1. Each advertises:
+    * leaf1 has es-id 00:11...:01 configured on its bond, so it originates a Type-4 route [4]:[00:11...:01]:[10.0.0.1] and sends it to the spine (route-reflector) via MP-BGP EVPN.
+    * leaf2 likewise advertises [4]:[00:11...:01]:[10.0.0.2].
+
+2. RR reflects:
+    * the spine, acting as RR, reflects both Type-4 routes to all EVPN neighbors — including each other. So leaf1 receives leaf2's Type-4, and vice versa.
+
+3. Match by ESI (the key discovery step):
+    * each leaf receives a Type-4 and compares the ESI field in the route against its own locally configured ESI:
+        * leaf1 receives [4]:[00:11...:01]:[10.0.0.2] → the ESI matches its local 00:11...:01 → "10.0.0.2 is my peer on this segment."
+        * leaf2 receives leaf1's route → matches the same way → "10.0.0.1 is my peer."
+4. Build the member set:
+    * each leaf collects the originators of all Type-4 routes whose ESI matches its local one, yielding the complete member list for this ES: here = {leaf1@10.0.0.1, leaf2@10.0.0.2}. Discovery complete.
+5. DF election: each leaf independently runs the same deterministic algorithm over the same member set (default RFC 7432 modulo arithmetic, or the es-df-pref preference method) → all leaves compute the same DF result, with no need to exchange the "election result," because everyone has the same input and the same algorithm → the conclusion is necessarily identical.
+    * **only the DF responds to the BUM traffic**
+6. Split-horizon: once it knows "10.0.0.2 is also on the same segment," leaf1 can filter BUM frames that arrive flooded over the overlay from that ESI, avoiding echoing them back to the server.
+
+
+```
+server ──broadcast──▶ leaf1 (ingress)
+   leaf1 floods into overlay, encap carries origin marker
+      (ESI-label, or simply source VTEP = 10.0.0.1)
+      ├─▶ leaf3 (remote, not on this segment) → delivers normally to its local server
+      └─▶ leaf2 (same-segment member!)
+             leaf2 checks: origin = ESI 00:11...:01 (via label)
+                           or source VTEP = 10.0.0.1 which shares that ESI (via local bias)
+             → matches "my own segment" → [split-horizon drops forwarding toward the bond]
+             → server never receives its own broadcast ✔
+   Meanwhile, for remote→server BUM, the DF (whichever of leaf1/leaf2 was elected)
+   delivers one copy to the server; the non-DF stays silent → no duplication
+```
+* **NOTE**: leaf1 and leaf2 have the same VNI, so they are in each other's flood list.
+
 ### Type-2 — MAC/IP advertisement (the host route)
 
 Say the server's frame was learned on leaf1:
