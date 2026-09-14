@@ -108,66 +108,180 @@ interface bond0
 
 EVPN uses typed NLRI. This all-active setup produces **four/five route types**.
 
-### Type-4 — Ethernet Segment route (who shares this ESI)
+### route types
+* EVPN routes all ride MP-BGP, address-family L2VPN EVPN (AFI 25, SAFI 70). Each route type is a different NLRI carrying a different kind of information:
 
-Both leaves advertise membership of ESI `00:11...:01`:
+| Type | Name | Carries | Primary job |
+|---|---|---|---|
+| 1 | Ethernet Auto-Discovery (A-D) | ESI, EthTag, ESI-label, Single-Active flag | Multihoming: aliasing + fast mass-withdraw + split-horizon label |
+| 2 | MAC/IP Advertisement | MAC, IP (opt), L2VNI, L3VNI, ESI, router-MAC, MAC-mobility seq | Host reachability (the workhorse) |
+| 3 | Inclusive Multicast Ethernet Tag (IMET) | VNI, originating VTEP, PMSI tunnel type | BUM flood list per VNI |
+| 4 | Ethernet Segment (ES) | ESI, originating VTEP IP | Multihoming: ES discovery → DF election + split-horizon |
+| 5 | IP Prefix | IP prefix, L3VNI, router-MAC, GW IP | Routed reachability (subnets, external, silent hosts) |
+| 6 | Selective Multicast Ethernet Tag (SMET) | Multicast group (from IGMP/MLD) | Multicast optimization (prune to interested receivers) |
+| 7 | Multicast Join Sync | ESI, multicast group | MH multicast: sync IGMP joins across ES peers |
+| 8 | Multicast Leave Sync | ESI, multicast group | MH multicast: sync IGMP leaves across ES peers |
 
-```
-[4]:[00:11:11:11:11:11:11:11:00:01]:[10.0.0.1]   from leaf1  RT=ES-import(auto from ESI)
-[4]:[00:11:11:11:11:11:11:11:00:01]:[10.0.0.2]   from leaf2
-```
+* Grouped by what they actually do
+* Reachability — "where is X"
+    * Type 2 (MAC/IP) — a specific host: MAC, optionally its IP. Carries L2VNI (bridging) + L3VNI (symmetric IRB routing) + ESI (enables aliasing). The workhorse. (1/3)
+    * Type 5 (IP Prefix) — a subnet/prefix, not a host. Summaries, external routes, silent hosts. Routed via L3VNI + router-MAC. Type-2 = hosts, Type-5 = subnets.
 
-**Purpose:** the two leaves *discover each other* as attached to the same segment →
-they run **DF (Designated Forwarder) election** (for BUM traffic) and enable
-**split-horizon** so a frame from the server isn't echoed back to it via the peer.
+* Multihoming — "two leaves = one server"
+    * Type 4 (ES) — discovery: leaves sharing an ESI find each other → DF election (who forwards BUM to the server) + split-horizon setup.
+    * Type 1 (A-D) — the all-active enabler: aliasing (remote VTEP ECMPs to a MAC across both leaves) + mass-withdraw (one route flips all MACs on the ESI at failover) + carries the ESI-label split-horizon consumes.
+
+* BUM / multicast — "flood control"
+    * Type 3 (IMET) — builds the per-VNI BUM flood list (ingress replication or PIM), keyed on VNI membership.
+    * Type 6 (SMET) — optimizes the multicast subset: from IGMP snooping, prune so a VTEP only gets groups its receivers actually joined (vs Type-3's flood-all-BUM).
+    * Types 7/8 (Join/Leave Sync) — on a shared ESI, keep multicast membership consistent across the ES peer leaves so the DF forwards the right groups even if the IGMP join landed on the non-DF leaf.
+
+* Mnemonic
+    * 1 = multihoming, load-balance (A-D → aliasing / mass-withdraw)
+    * 2 = a host (MAC/IP)
+    * 3 = BUM flood list (who's in the VNI)
+    * 4 = multihoming, don't-duplicate (ES → DF election)
+    * 5 = a subnet (IP prefix, L3)
+    * 6 = multicast pruning (IGMP-derived)
+    * 7/8 = multicast join/leave sync across ES peers
+
+
 
 ### Type-1 — Ethernet Auto-Discovery (the all-active enabler)
 
+* type-1 is to let the fabric know here is a segment and how it behaves (all active, or active-standby)
+
+| | per-ES A-D | per-EVI A-D |
+|---|---|---|
+| How many leaf3 needs | one (per leaf, but for the decision one is enough) | one from EACH leaf |
+| What it gives leaf3 | "this ESI is all-active" (Single-Active=0) + mass-withdraw + (MPLS) ESI-label | a next-hop for the ESI in this VNI |
+| Builds the ECMP set? | ❌ no — it's metadata about the segment | ✅ yes — each one adds one next-hop |
+
+#### Type-1 per-ES (per Ethernet Segment)
+* Per RFC 7432 the per-ES route uses RD = the segment RD, which FRR sets to <router-id>:0. Everything else is straight from the doc.
+* leaf1
 ```
-[1]:[ESI 00:11...:01]:[EthTag 0]   from leaf1, ESI-label, "Single-Active=0" (all-active)
-[1]:[ESI 00:11...:01]:[EthTag 0]   from leaf2
+EVPN Type-1 A-D per-ES
+  RD:              10.0.0.1:0                        ← segment RD (router-id:0)
+  ESI:             00:11:11:11:11:11:11:11:00:01
+  Ethernet Tag ID: 0xFFFFFFFF                        ← MAX-ET = whole segment
+  MPLS Label(NLRI):0                                 ← label field 0; real label is in ext-comm
+  Next-hop:        10.0.0.1
+  Ext-communities:
+    Route-Target:  65000:10100                       ← VNI/EVI RT
+    ESI Label:     [ Single-Active = 0 (all-active),  ESI-label = 16001 ]
+```
+* leaf2
+```
+EVPN Type-1 A-D per-ES
+  RD:              10.0.0.2:0                        ← segment RD (router-id:0)
+  ESI:             00:11:11:11:11:11:11:11:00:01     ← SAME ESI
+  Ethernet Tag ID: 0xFFFFFFFF
+  MPLS Label(NLRI):0
+  Next-hop:        10.0.0.2                          ← distinct
+  Ext-communities:
+    Route-Target:  65000:10100                       ← SAME VNI RT
+    ESI Label:     [ Single-Active = 0,  ESI-label = 16002 ]
 ```
 
-**Purpose — this is the load-balancing route.** A remote VTEP that has a MAC
-pointing at this ESI uses the **Type-1 A-D per-ES** routes to know it can send to
-*both* leaf1 and leaf2 → **aliasing**: it ECMPs traffic to the MAC across both VTEPs
-even if only one leaf actually learned the MAC. Also gives **fast mass-withdraw**:
-if leaf1's link fails, one Type-1 withdraw reconverges all MACs on that ESI at once.
+* **Same**: ESI, EthTag (MAX-ET), Single-Active=0, ES-import RT
+* **Different**: RD (10.0.0.1:0 / 10.0.0.2:0), next-hop, ESI-label (16001/16002).
 
-#### Type-1 walkthrough
+#### Type-1 per-EVI (per EVPN instance/VNI)
+* leaf1
+```
+EVPN Type-1 A-D per-EVI  (VNI 10100)
+  RD:              10.0.0.1:10100        ← doc's leaf1 L2 RD
+  ESI:             00:11:11:11:11:11:11:11:00:01
+  Ethernet Tag ID: 0
+  MPLS Label/VNI:  10100
+  Next-hop:        10.0.0.1
+  Route-Target:    65000:10100           ← doc's shared L2 RT
+```
 
-1. Each advertises:
-    * leaf1 has es-id 00:11...:01 configured on its bond, so it originates a Type-4 route [4]:[00:11...:01]:[10.0.0.1] and sends it to the spine (route-reflector) via MP-BGP EVPN.
-    * leaf2 likewise advertises [4]:[00:11...:01]:[10.0.0.2].
+* leaf2
+```
+EVPN Type-1 A-D per-EVI  (VNI 10100)
+  RD:              10.0.0.2:10100        ← doc's leaf2 L2 RD
+  ESI:             00:11:11:11:11:11:11:11:00:01     ← SAME ESI
+  Ethernet Tag ID: 0
+  MPLS Label/VNI:  10100
+  Next-hop:        10.0.0.2                          ← distinct
+  Route-Target:    65000:10100                       ← SAME shared RT
+```
 
-2. RR reflects:
-    * the spine, acting as RR, reflects both Type-4 routes to all EVPN neighbors — including each other. So leaf1 receives leaf2's Type-4, and vice versa.
+* **Same**: ESI, EthTag=0, VNI 10100, RT 65000:10100.
+* **Different**: RD (10.0.0.1:10100 / 10.0.0.2:10100), next-hop.
 
-3. Match by ESI (the key discovery step):
-    * each leaf receives a Type-4 and compares the ESI field in the route against its own locally configured ESI:
-        * leaf1 receives [4]:[00:11...:01]:[10.0.0.2] → the ESI matches its local 00:11...:01 → "10.0.0.2 is my peer on this segment."
-        * leaf2 receives leaf1's route → matches the same way → "10.0.0.1 is my peer."
-4. Build the member set:
-    * each leaf collects the originators of all Type-4 routes whose ESI matches its local one, yielding the complete member list for this ES: here = {leaf1@10.0.0.1, leaf2@10.0.0.2}. Discovery complete.
-5. DF election: each leaf independently runs the same deterministic algorithm over the same member set (default RFC 7432 modulo arithmetic, or the es-df-pref preference method) → all leaves compute the same DF result, with no need to exchange the "election result," because everyone has the same input and the same algorithm → the conclusion is necessarily identical.
-    * **only the DF responds to the BUM traffic**
-6. Split-horizon: once it knows "10.0.0.2 is also on the same segment," leaf1 can filter BUM frames that arrive flooded over the overlay from that ESI, avoiding echoing them back to the server.
-
+#### how leaf3 assembles active-active?
 
 ```
-server ──broadcast──▶ leaf1 (ingress)
-   leaf1 floods into overlay, encap carries origin marker
-      (ESI-label, or simply source VTEP = 10.0.0.1)
-      ├─▶ leaf3 (remote, not on this segment) → delivers normally to its local server
-      └─▶ leaf2 (same-segment member!)
-             leaf2 checks: origin = ESI 00:11...:01 (via label)
-                           or source VTEP = 10.0.0.1 which shares that ESI (via local bias)
-             → matches "my own segment" → [split-horizon drops forwarding toward the bond]
-             → server never receives its own broadcast ✔
-   Meanwhile, for remote→server BUM, the DF (whichever of leaf1/leaf2 was elected)
-   delivers one copy to the server; the non-DF stays silent → no duplication
+Import per-EVI Type-1 (RT 65000:10100 matches leaf3's VNI 10100):
+   ESI 00:11:11:11:11:11:11:11:00:01, VNI 10100  →  { 10.0.0.1, 10.0.0.2 }   ← ECMP set (aliasing)
+
+Import per-ES Type-1 (ES-import RT 65000:10100):
+   ESI is all-active (Single-Active=0)                                        ← ECMP allowed
+   leaf1 split-horizon label 16001, leaf2 16002                              ← (MPLS only)
 ```
-* **NOTE**: leaf1 and leaf2 have the same VNI, so they are in each other's flood list.
+
+* Then the doc's Type-2 arrives (say from leaf1):
+```
+RD 10.0.0.1:10100
+[2]:[ESI 00:11:11:11:11:11:11:11:00:01]:[0]:[48]:[AA:AA:AA:00:00:01]:[32]:[10.1.1.10]
+    next-hop 10.0.0.1,  RT 65000:10100 (+ 65000:10200 L3)
+```
+
+* leaf3 reads its ESI → looks up `{10.0.0.1, 10.0.0.2}` → installs ECMP to both leaves for the MAC. That's active-active. On leaf1 failure, its one per-ES Type-1 (10.0.0.1:0) withdraws → leaf3 drops 10.0.0.1 → all MACs on the ESI collapse to {10.0.0.2}.
+
+#### massive withdraw
+
+* **FACT**: Remote VTEPs don't point MACs directly at leaf1 or leaf2 VTEP IP — they point them at the ESI, which resolves (via the per-ES/per-EVI A-D routes) to the set of leaves on that segment:
+```
+Before failure, on leaf3:
+   5000 MACs  ──resolve to──►  ESI 00:11...:01  ──resolves to──►  { 10.0.0.1, 10.0.0.2 }
+
+leaf1 withdraws  per-ES A-D [1]:[00:11...:01]  (RD 10.0.0.1:0)   ← ONE message
+   │
+   └─► leaf3 removes 10.0.0.1 from the ESI's next-hop set
+          ESI 00:11...:01  →  { 10.0.0.2 }        (was {10.0.0.1, 10.0.0.2})
+   │
+   └─► ALL 5000 MACs that resolve through that ESI instantly re-point to { 10.0.0.2 }
+```
+
+* withdraw message:
+```
+WITHDRAW:  [1]:[ESI 00:11:11:11:11:11:11:11:00:01]:[EthTag 0xFFFFFFFF]
+           RD 10.0.0.1:0
+```
+
+* withdraw hierachy:
+```
+1 × per-ES A-D withdraw      → clears leaf1 for the WHOLE ESI, all VNIs, all MACs   ← MASS WITHDRAW (fastest, O(1))
+N × per-EVI A-D withdraw     → clears leaf1 for the ESI, per-VNI  (N = #VNIs)        ← medium
+M × Type-2 withdraw          → clears leaf1 per-MAC  (M = #MACs)                     ← slowest, O(M), the backstop
+```
+
+#### why RD/RT differ between Type-1 per-ES and per-EVI?
+
+| | per-ES | per-EVI (VNI 10100) |
+|---|---|---|
+| RD | 10.0.0.1:0 / 10.0.0.2:0 | 10.0.0.1:10100 / 10.0.0.2:10100 |
+| RT | 65000:10100 (the VNI's RT — same as per-EVI) | 65000:10100 (the VNI's RT) |
+
+* RD differs between the two flavors because they have different scopes; RT is the same on both because both must reach the same audience (the VNI's members).
+* The per-EVI route is bound to one VNI, so it carries that VNI's RD (10.0.0.1:10100) and the VNI's RT (65000:10100) — imported into the VNI-10100 context like the MAC routes.
+* The per-ES route spans the whole segment (all VNIs), so it can't use a VNI RD — it uses the segment RD <router-id>:0. But its RT is still the VNI RT (65000:10100) — in fact the per-ES A-D route carries the RTs of all EVIs the segment belongs to (here, just VNI 10100), precisely so it reaches all members of those VNIs, including remote VTEPs like leaf3. That's how leaf3 imports the per-ES route (via the VNI RT it already has) and learns Single-Active = all-active + the mass-withdraw handle.
+In short: per-EVI is scoped to a VNI (VNI RD + VNI RT); per-ES is scoped to the Ethernet Segment for its RD (segment :0 RD) but still tagged with the VNI RT(s) for distribution. The RD tracks "unique within what scope" (segment vs VNI, so it differs), while the RT tracks "imported by whom" — and since both flavors must be delivered to the VNI's members, the RT is the same (65000:10100). Only the RD differs.
+
+```
+Type-1 per-ES A-D:  [1]:[00:11...:01]:[MAX-ET]   RD 10.0.0.1:0   RT 65000:10100 (VNI RT)
+        │  RR reflects to everyone
+        ├─► leaf2  (has VNI 10100 → import RT 65000:10100 matches)
+        │        USE: Single-Active=0 + mass-withdraw handle (also same-segment peer)
+        ├─► leaf3  (has VNI 10100 → import RT 65000:10100 matches)
+        │        USE: learns Single-Active=0 (ECMP OK) + holds the mass-withdraw handle
+        └─► leafX  (no VNI 10100 → RT 65000:10100 does NOT match → ignores it)   ← filtering
+```
 
 ### Type-2 — MAC/IP advertisement (the host route)
 
@@ -205,6 +319,52 @@ RD 10.0.0.1:10100
 **Purpose:** builds the BUM (broadcast / unknown-unicast / multicast) flood list
 per VNI via ingress replication. DF election (from Type-4) ensures only **one** of
 leaf1/leaf2 forwards BUM *toward the server* so it isn't duplicated.
+
+### Type-4 — Ethernet Segment route (who shares this ESI)
+
+Both leaves advertise membership of ESI `00:11...:01`:
+
+```
+[4]:[00:11:11:11:11:11:11:11:00:01]:[10.0.0.1]   from leaf1  RT=ES-import(auto from ESI)
+[4]:[00:11:11:11:11:11:11:11:00:01]:[10.0.0.2]   from leaf2
+```
+
+**Purpose:** the two leaves *discover each other* as attached to the same segment →
+they run **DF (Designated Forwarder) election** (for BUM traffic) and enable
+**split-horizon** so a frame from the server isn't echoed back to it via the peer.
+
+#### Type-4 walkthrough
+
+1. Each advertises:
+    * leaf1 has es-id 00:11...:01 configured on its bond, so it originates a Type-4 route [4]:[00:11...:01]:[10.0.0.1] and sends it to the spine (route-reflector) via MP-BGP EVPN.
+    * leaf2 likewise advertises [4]:[00:11...:01]:[10.0.0.2].
+2. RR reflects:
+    * the spine, acting as RR, reflects both Type-4 routes to all EVPN neighbors — including each other. So leaf1 receives leaf2's Type-4, and vice versa.
+3. Match by ESI (the key discovery step):
+    * each leaf receives a Type-4 and compares the ESI field in the route against its own locally configured ESI:
+        * leaf1 receives [4]:[00:11...:01]:[10.0.0.2] → the ESI matches its local 00:11...:01 → "10.0.0.2 is my peer on this segment."
+        * leaf2 receives leaf1's route → matches the same way → "10.0.0.1 is my peer."
+4. Build the member set:
+    * each leaf collects the originators of all Type-4 routes whose ESI matches its local one, yielding the complete member list for this ES: here = {leaf1@10.0.0.1, leaf2@10.0.0.2}. Discovery complete.
+5. DF election: each leaf independently runs the same deterministic algorithm over the same member set (default RFC 7432 modulo arithmetic, or the es-df-pref preference method) → all leaves compute the same DF result, with no need to exchange the "election result," because everyone has the same input and the same algorithm → the conclusion is necessarily identical.
+    * **only the DF responds to the BUM traffic**
+6. Split-horizon: once it knows "10.0.0.2 is also on the same segment," leaf1 can filter BUM frames that arrive flooded over the overlay from that ESI, avoiding echoing them back to the server.
+
+
+```
+server ──broadcast──▶ leaf1 (ingress)
+   leaf1 floods into overlay, encap carries origin marker
+      (ESI-label, or simply source VTEP = 10.0.0.1)
+      ├─▶ leaf3 (remote, not on this segment) → delivers normally to its local server
+      └─▶ leaf2 (same-segment member!)
+             leaf2 checks: origin = ESI 00:11...:01 (via label)
+                           or source VTEP = 10.0.0.1 which shares that ESI (via local bias)
+             → matches "my own segment" → [split-horizon drops forwarding toward the bond]
+             → server never receives its own broadcast ✔
+   Meanwhile, for remote→server BUM, the DF (whichever of leaf1/leaf2 was elected)
+   delivers one copy to the server; the non-DF stays silent → no duplication
+```
+* **NOTE**: leaf1 and leaf2 have the same VNI, so they are in each other's flood list.
 
 ### Type-5 — IP Prefix (symmetric IRB / external)
 
@@ -248,3 +408,6 @@ sub-second failover to leaf2 alone, no per-MAC churn.
   globally **unique**. Pure disambiguation, no policy. Per-leaf-per-EVI (distinct).
 - **RT (Route Target)** — BGP extended-community **attribute** controlling
   **import/export** (who receives the route). Per-VNI (shared) → membership.
+
+## references
+* https://arista.my.site.com/AristaCommunity/s/article/Common-EVPN-Route-Types
