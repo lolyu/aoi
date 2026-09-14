@@ -411,3 +411,4 @@ sub-second failover to leaf2 alone, no per-MAC churn.
 
 ## references
 * https://arista.my.site.com/AristaCommunity/s/article/Common-EVPN-Route-Types
+* https://bgphelp.com/2017/04/03/evpn-type-1-ethernet-auto-discovery-explained/
