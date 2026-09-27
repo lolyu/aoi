@@ -111,16 +111,17 @@ EVPN uses typed NLRI. This all-active setup produces **four/five route types**.
 ### route types
 * EVPN routes all ride MP-BGP, address-family L2VPN EVPN (AFI 25, SAFI 70). Each route type is a different NLRI carrying a different kind of information:
 
-| Type | Name | Carries | Primary job |
-|---|---|---|---|
-| 1 | Ethernet Auto-Discovery (A-D) | ESI, EthTag, ESI-label, Single-Active flag | Multihoming: aliasing + fast mass-withdraw + split-horizon label |
-| 2 | MAC/IP Advertisement | MAC, IP (opt), L2VNI, L3VNI, ESI, router-MAC, MAC-mobility seq | Host reachability (the workhorse) |
-| 3 | Inclusive Multicast Ethernet Tag (IMET) | VNI, originating VTEP, PMSI tunnel type | BUM flood list per VNI |
-| 4 | Ethernet Segment (ES) | ESI, originating VTEP IP | Multihoming: ES discovery → DF election + split-horizon |
-| 5 | IP Prefix | IP prefix, L3VNI, router-MAC, GW IP | Routed reachability (subnets, external, silent hosts) |
-| 6 | Selective Multicast Ethernet Tag (SMET) | Multicast group (from IGMP/MLD) | Multicast optimization (prune to interested receivers) |
-| 7 | Multicast Join Sync | ESI, multicast group | MH multicast: sync IGMP joins across ES peers |
-| 8 | Multicast Leave Sync | ESI, multicast group | MH multicast: sync IGMP leaves across ES peers |
+| Type | Name | Carries (key fields) | Imported by (RT / scope) | Primary job |
+|---|---|---|---|---|
+| 1 | Ethernet Auto-Discovery (A-D) | ESI, Ethernet Tag, ESI-label + Single-Active flag (in ESI-Label ext-comm); per-ES (Tag = MAX-ET, segment RD rid:0) vs per-EVI (Tag = 0, VNI RD); VNI RT | All VNI members (VNI RT) — incl. remote leaves | Multihoming: aliasing (per-EVI → remote ECMP next-hop) + fast mass-withdraw (per-ES, one withdraw drops all MACs on the ESI) + carries the ESI-label for split-horizon |
+| 2 | MAC/IP Advertisement | MAC, IP (opt), L2VNI (+ L3VNI & router-MAC for symmetric IRB), ESI, MAC-mobility seq#; RD rid:vni | VNI members (L2 RT; L3 RT if IRB) | Host reachability — the workhorse (bridging; routing via IRB; ESI enables aliasing; seq# = mobility) |
+| 3 | Inclusive Multicast (IMET) | Originating VTEP IP, Ethernet Tag, PMSI Tunnel attr (type = Ingress-Replication or PIM + tunnel endpoint), VNI label; VNI RT | Every VNI member (VNI RT), multihomed or not | Builds the per-VNI BUM flood list + specifies the flood transport (head-end IR vs underlay multicast) |
+| 4 | Ethernet Segment (ES) | ESI, originating VTEP IP in the NLRI key [4]:[ESI]:[IP]; ES-Import RT auto-derived from the ESI | Only same-segment leaves (ESI-derived RT) — self-forming | Multihoming (segment-internal): ES discovery → DF election + split-horizon enablement | (1/3)
+| 5 | IP Prefix | IP prefix (subnet/host-/32), L3VNI, router-MAC, GW IP; no ESI; RD rid:l3vni | Tenant VRF members (L3VNI RT) | Routed reachability (subnets, external/summary, silent hosts) via symmetric IRB |
+
+* ✅ Type-3 — build the VNI flood list. Perfect, no caveat. Every VTEP in the VNI advertises one; everyone imports by VNI RT; the result is the per-VNI BUM flood list (+ the PMSI says how to flood). ESI-blind, per-VNI.
+* ✅ Type-4 — build the active-active set of the same ESI → DF election + split-horizon. Perfect. ESI-derived RT → only same-segment leaves import → they build the member set {10.0.0.1, 10.0.0.2} → run DF election + arm split-horizon. Segment-internal (leaf1↔leaf2), inward-facing.
+* ✅ Type-1 — for the remote VTEP (same VNI) to build the ECMP … mostly. This is right for the per-EVI flavor (aliasing → remote ECMP). But Type-1 has a second job via its per-ES flavor that isn't about the remote ECMP set:
 
 * Grouped by what they actually do
 * Reachability — "where is X"
@@ -186,6 +187,9 @@ EVPN Type-1 A-D per-ES
 
 * **Same**: ESI, EthTag (MAX-ET), Single-Active=0, ES-import RT
 * **Different**: RD (10.0.0.1:0 / 10.0.0.2:0), next-hop, ESI-label (16001/16002).
+* leaf1 will receive the Type-1 per-ES from leaf2, and will have the knowledge that leaf2 is in the same ESI.
+    * this knowledge is used to apply the split-horizon:
+        * when leaf1 receives BUM traffic, and the VXLAN header source IP is leaf2 VTEP, it will not flood the traffic.
 
 #### Type-1 per-EVI (per EVPN instance/VNI)
 * leaf1
@@ -283,6 +287,11 @@ Type-1 per-ES A-D:  [1]:[00:11...:01]:[MAX-ET]   RD 10.0.0.1:0   RT 65000:10100 
         └─► leafX  (no VNI 10100 → RT 65000:10100 does NOT match → ignores it)   ← filtering
 ```
 
+#### what is ESI label?
+* The ESI label is an MPLS label each leaf advertises in its Type-1 per-ES route (in the ESI Label extended community) to tag flooded BUM frames with the Ethernet Segment they ingressed from, so a peer leaf on the same segment can recognize "this broadcast came from our shared segment" and apply split-horizon — dropping the copy it would otherwise send back down the bond to the server,
+* **NOTE**: for VXLAN, the other leaf uses the source IP to determine if it is in the same ESI, if yes, drop the BUM traffic.
+
+
 ### Type-2 — MAC/IP advertisement (the host route)
 
 Say the server's frame was learned on leaf1:
@@ -310,23 +319,75 @@ Even though only leaf1 learned the MAC in the data plane, leaf2 forwards for it 
 
 ### Type-3 — Inclusive Multicast (BUM flooding)
 
+* leaf1
+
 ```
-RD 10.0.0.1:10100
-[3]:[EthTag 0]:[32]:[10.0.0.1]   from leaf1   (PMSI = ingress replication)
-[3]:...:[10.0.0.2]               from leaf2
+EVPN Type-3 (Inclusive Multicast Ethernet Tag)
+  RD:                 10.0.0.1:10100          ← per-leaf VNI RD (same as leaf1's Type-2 in this VNI)
+  Ethernet Tag ID:    0                        ← the VNI's EVI tag
+  IP Address Length:  32
+  Originating IP:     10.0.0.1                 ← leaf1's VTEP source
+  Next-hop:           10.0.0.1
+  Ext-communities:
+    Route-Target:     65000:10100              ← VNI RT (shared)
+  PMSI Tunnel attribute:
+    Flags:            0
+    Tunnel Type:      6  (Ingress Replication) ← VXLAN head-end replication
+    MPLS Label/VNI:   10100                     ← VNI encoded in the label field
+    Tunnel Identifier:10.0.0.1                  ← "send my BUM copies here"
 ```
+
+* leaf2
+```
+EVPN Type-3 (Inclusive Multicast Ethernet Tag)
+  RD:                 10.0.0.2:10100          ← distinct RD
+  Ethernet Tag ID:    0
+  IP Address Length:  32
+  Originating IP:     10.0.0.2                 ← leaf2's VTEP source
+  Next-hop:           10.0.0.2
+  Ext-communities:
+    Route-Target:     65000:10100              ← SAME VNI RT
+  PMSI Tunnel attribute:
+    Tunnel Type:      6  (Ingress Replication)
+    MPLS Label/VNI:   10100
+    Tunnel Identifier:10.0.0.2                  ← leaf2's own VTEP
+```
+
 
 **Purpose:** builds the BUM (broadcast / unknown-unicast / multicast) flood list
 per VNI via ingress replication. DF election (from Type-4) ensures only **one** of
 leaf1/leaf2 forwards BUM *toward the server* so it isn't duplicated.
+
+#### Why do we need Type-3 IMET if Type-1 per-EVI carries per-VNI info?
+* This is the crux, and the answer is: Type-1 per-EVI is advertised only for multihomed segments (non-zero ESI). It cannot build the flood list for the fabric, because most VTEPs/hosts aren't multihomed — they have no ESI, so they emit no Type-1 at all. Type-3 is what covers everyone.
+
+* The decisive difference: Type-1 requires an ESI; Type-3 doesn't
+    * Type-1 (both flavors) is only originated when there's a non-zero ESI — i.e. only for multihomed sites (the doc's rule: "Type-1 routes only originate for multi-homed sites"). A single-homed VTEP, or a VTEP with locally-attached non-multihomed hosts, has ESI = 0 and advertises no Type-1.
+    * Type-3 is originated by every VTEP that has the VNI, multihomed or not. It's keyed on VNI membership, not on any ESI.
 
 ### Type-4 — Ethernet Segment route (who shares this ESI)
 
 Both leaves advertise membership of ESI `00:11...:01`:
 
 ```
-[4]:[00:11:11:11:11:11:11:11:00:01]:[10.0.0.1]   from leaf1  RT=ES-import(auto from ESI)
-[4]:[00:11:11:11:11:11:11:11:00:01]:[10.0.0.2]   from leaf2
+EVPN Type-4 (Ethernet Segment)
+  RD:                10.0.0.1:0                        ← segment RD (router-id:0), same form as per-ES Type-1
+  ESI:               00:11:11:11:11:11:11:11:00:01
+  IP Address Length: 32
+  Originating IP:    10.0.0.1                          ← leaf1's VTEP (the NLRI KEY carries the IP)
+  Next-hop:          10.0.0.1
+  Ext-communities:
+    ES-Import RT:    0011.1111.1111                    ← AUTO-DERIVED from the ESI's MAC bytes
+```
+```
+EVPN Type-4 (Ethernet Segment)
+  RD:                10.0.0.2:0                         ← distinct segment RD
+  ESI:               00:11:11:11:11:11:11:11:00:01      ← SAME ESI
+  IP Address Length: 32
+  Originating IP:    10.0.0.2                           ← leaf2's VTEP
+  Next-hop:          10.0.0.2
+  Ext-communities:
+    ES-Import RT:    0011.1111.1111                     ← SAME auto-derived RT
 ```
 
 **Purpose:** the two leaves *discover each other* as attached to the same segment →
@@ -366,11 +427,33 @@ server ──broadcast──▶ leaf1 (ingress)
 ```
 * **NOTE**: leaf1 and leaf2 have the same VNI, so they are in each other's flood list.
 
+#### Type-1 per EVI vs Type-4
+
+* They don't overlap — different consumers, different direction, different function
+
+| | Type-4 (ES) | Type-1 per-EVI (A-D) |
+|---|---|---|
+| Who imports it | only same-segment leaves (leaf1↔leaf2) | all VNI members (leaf1, leaf2, leaf3) |
+| RT | ESI-derived 0011.1111.1111 | VNI RT 65000:10100 |
+| Direction | inward (leaf ↔ leaf on the segment) | outward (segment → the whole fabric) |
+| Function | DF election + split-horizon | aliasing (remote ECMP next-hop) |
+| Answers | "who else is on my segment, so we can coordinate?" | "which VTEPs can a remote leaf ECMP a MAC across?" |
+
 ### Type-5 — IP Prefix (symmetric IRB / external)
 
 ```
-RD 10.0.0.1:10200
-[5]:[EthTag 0]:[24]:[10.1.1.0]   L3VNI 10200, RT 65000:10200, router-MAC ...
+EVPN Type-5 (IP Prefix Route)
+  RD:                10.0.0.1:10200            ← L3VNI RD (per-leaf, the VRF's RD)
+  Ethernet Tag ID:   0
+  IP Prefix Length:  24
+  IP Prefix:         10.1.1.0                  ← the tenant SUBNET (not a host)
+  GW IP:             0.0.0.0                   ← unused in symmetric IRB (0)
+  Next-hop:          10.0.0.1                  ← leaf1's VTEP
+  Ext-communities:
+    Route-Target:    65000:10200              ← L3VNI RT (the VRF's RT)
+    Router-MAC:      00:11:22:33:44:01        ← leaf1's per-VTEP router-MAC (for inner DMAC)
+    EVPN Router's MAC ext-comm
+  MPLS Label / VNI:  10200                     ← L3VNI (routing VNI)
 ```
 
 **Purpose:** advertises the tenant *prefix* (not host) for routed reachability —
