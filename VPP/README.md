@@ -26,6 +26,7 @@
     * sonic vpp architecture
       * [sonic vpp architecture](https://github.com/lolyu/aoi/blob/master/VPP/vpp_sonic_intergation_overview.md)
       * [sonic vpp port setup](https://github.com/lolyu/aoi/blob/master/VPP/sonic_vpp_port_setup.md)
+      * [sonic vpp event notifications (port oper-status, BFD, FDB)](https://github.com/lolyu/aoi/blob/master/VPP/dev/event_notification.md)
       * [sonic vpp t0 config](https://github.com/lolyu/aoi/blob/master/VPP/sonic_vpp_t0.conf)
     * contributing to sonic-vpp:
       * [SONiC-VPP Learning Plan](https://github.com/lolyu/aoi/blob/master/VPP/sonic_vpp_learning_plan.md) - Complete guide for implementing new features
